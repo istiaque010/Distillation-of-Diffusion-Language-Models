@@ -1,0 +1,10 @@
+teacher    uniform CE 3.0916 acc 0.4124 bound 10.76 | S4 CE 3.8796 S8 CE 3.5320 S16 CE 3.3346
+ce         uniform CE 3.0989 acc 0.4122 bound 10.85 | S4 CE 3.8736 S8 CE 3.5310 S16 CE 3.3334
+kd         uniform CE 3.1089 acc 0.4113 bound 10.96 | S4 CE 3.8923 S8 CE 3.5453 S16 CE 3.3484
+kd_l25     uniform CE 3.1023 acc 0.4118 bound 10.89 | S4 CE 3.8793 S8 CE 3.5353 S16 CE 3.3384
+kd_l75     uniform CE 3.1236 acc 0.4104 bound 11.10 | S4 CE 3.9198 S8 CE 3.5666 S16 CE 3.3685
+kd_l100    uniform CE 3.1874 acc 0.4083 bound 11.67 | S4 CE 4.0082 S8 CE 3.6443 S16 CE 3.4420
+kd_T1      uniform CE 3.1047 acc 0.4118 bound 10.94 | S4 CE 3.8855 S8 CE 3.5403 S16 CE 3.3425
+kd_T4      uniform CE 3.1027 acc 0.4117 bound 10.91 | S4 CE 3.8840 S8 CE 3.5377 S16 CE 3.3411
+kd_state   uniform CE 3.0989 acc 0.4118 bound 10.86 | S4 CE 3.8769 S8 CE 3.5333 S16 CE 3.3359
+kd_small   uniform CE 3.2593 acc 0.3860 bound 12.88 | S4 CE 4.0101 S8 CE 3.6830 S16 CE 3.4963

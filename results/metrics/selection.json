@@ -1,0 +1,35 @@
+{
+ "rule": {
+  "max_repetitive": 0.1,
+  "min_distinct_2": 0.4
+ },
+ "kd_candidates_dev_ppl_K8": {
+  "kd": 50.815205605861436,
+  "kd_l25": 52.12160362027402,
+  "kd_l75": 50.91165050127152,
+  "kd_l100": 49.030632513425374,
+  "kd_T1": 54.21126129311776,
+  "kd_T4": 51.50607882983157,
+  "kd_state": 56.924372961490405
+ },
+ "kd_best": "kd_l100",
+ "rejected": {},
+ "test_names": [
+  "teacher@full-random-K32+noadj+stop+lazy",
+  "teacher@full-random-K16+noadj+stop+lazy",
+  "teacher@full-random-K8+noadj+stop+lazy",
+  "teacher@full-random-K4+noadj+stop+lazy",
+  "teacher@full-random-K8+noadj+stop+lazy@topk20t0.8",
+  "teacher@full-conf-K8+stop+lazy",
+  "ce@full-random-K16+noadj+stop+lazy",
+  "ce@full-random-K8+noadj+stop+lazy",
+  "ce@full-random-K4+noadj+stop+lazy",
+  "kd_l100@full-random-K16+noadj+stop+lazy",
+  "kd_l100@full-random-K8+noadj+stop+lazy",
+  "kd_l100@full-random-K4+noadj+stop+lazy",
+  "kd_l100@full-conf-K8+stop+lazy",
+  "kd@full-random-K8+noadj+stop+lazy",
+  "kd_state@full-random-K8+noadj+stop+lazy",
+  "kd_small@full-random-K8+noadj+stop+lazy"
+ ]
+}

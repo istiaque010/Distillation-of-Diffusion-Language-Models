@@ -1,0 +1,49 @@
+kd_l75: 13,891,968 params, lambda_KD 0.75, T 2, targets traj, 1500 steps
+  step 0 val_traj 1.3268, val_span_ce 2.4265, val_sched_ce 3.5675, val_ce 3.0596, val_acc 0.4154
+step    50 | loss 2.0887 kd 1.5799 ce 3.6151 | lr 1.50e-05 | 0.97 s/step
+step   100 | loss 2.0941 kd 1.5946 ce 3.5925 | lr 3.00e-05 | 0.97 s/step
+step   150 | loss 2.0838 kd 1.5818 ce 3.5897 | lr 2.99e-05 | 0.97 s/step
+step   200 | loss 2.0878 kd 1.5874 ce 3.5887 | lr 2.97e-05 | 0.97 s/step
+step   250 | loss 2.0957 kd 1.5911 ce 3.6095 | lr 2.93e-05 | 0.97 s/step
+  val_traj 1.3453, val_span_ce 2.3832, val_sched_ce 3.6045, val_ce 3.0927, val_acc 0.4134
+step   300 | loss 2.0031 kd 1.4952 ce 3.5268 | lr 2.87e-05 | 1.02 s/step
+step   350 | loss 2.0057 kd 1.4952 ce 3.5372 | lr 2.79e-05 | 1.01 s/step
+step   400 | loss 2.0086 kd 1.4936 ce 3.5537 | lr 2.71e-05 | 1.00 s/step
+step   450 | loss 2.0324 kd 1.5107 ce 3.5975 | lr 2.61e-05 | 1.00 s/step
+step   500 | loss 2.0455 kd 1.5125 ce 3.6446 | lr 2.49e-05 | 1.00 s/step
+  val_traj 1.3516, val_span_ce 2.3896, val_sched_ce 3.6055, val_ce 3.1006, val_acc 0.4120
+step   550 | loss 2.0390 kd 1.4950 ce 3.6712 | lr 2.37e-05 | 1.02 s/step
+step   600 | loss 2.0893 kd 1.5716 ce 3.6424 | lr 2.24e-05 | 1.02 s/step
+step   650 | loss 2.0827 kd 1.5684 ce 3.6256 | lr 2.10e-05 | 1.02 s/step
+step   700 | loss 2.0851 kd 1.5762 ce 3.6118 | lr 1.95e-05 | 1.01 s/step
+step   750 | loss 2.0856 kd 1.5631 ce 3.6530 | lr 1.80e-05 | 1.01 s/step
+  val_traj 1.3540, val_span_ce 2.3843, val_sched_ce 3.6078, val_ce 3.0974, val_acc 0.4131
+step   800 | loss 2.0299 kd 1.5192 ce 3.5621 | lr 1.65e-05 | 1.03 s/step
+step   850 | loss 2.0747 kd 1.5584 ce 3.6236 | lr 1.50e-05 | 1.02 s/step
+step   900 | loss 2.0672 kd 1.5400 ce 3.6488 | lr 1.35e-05 | 1.02 s/step
+step   950 | loss 2.0669 kd 1.5447 ce 3.6334 | lr 1.21e-05 | 1.02 s/step
+step  1000 | loss 2.0820 kd 1.5598 ce 3.6488 | lr 1.07e-05 | 1.02 s/step
+  val_traj 1.3540, val_span_ce 2.3836, val_sched_ce 3.6091, val_ce 3.0986, val_acc 0.4122
+step  1050 | loss 2.0716 kd 1.5647 ce 3.5923 | lr 9.34e-06 | 1.03 s/step
+step  1100 | loss 2.0352 kd 1.5088 ce 3.6144 | lr 8.11e-06 | 1.03 s/step
+step  1150 | loss 2.0483 kd 1.5185 ce 3.6379 | lr 6.98e-06 | 1.02 s/step
+step  1200 | loss 2.0493 kd 1.5185 ce 3.6418 | lr 5.96e-06 | 1.02 s/step
+step  1250 | loss 2.0625 kd 1.5307 ce 3.6579 | lr 5.09e-06 | 1.02 s/step
+  val_traj 1.3516, val_span_ce 2.3828, val_sched_ce 3.6093, val_ce 3.0955, val_acc 0.4128
+step  1300 | loss 2.0228 kd 1.4917 ce 3.6162 | lr 4.35e-06 | 1.03 s/step
+step  1350 | loss 2.0704 kd 1.5470 ce 3.6405 | lr 3.77e-06 | 1.03 s/step
+step  1400 | loss 2.0760 kd 1.5427 ce 3.6759 | lr 3.35e-06 | 1.02 s/step
+step  1450 | loss 2.0689 kd 1.5423 ce 3.6488 | lr 3.09e-06 | 1.02 s/step
+step  1500 | loss 2.0646 kd 1.5354 ce 3.6521 | lr 3.00e-06 | 1.02 s/step
+  val_traj 1.3495, val_span_ce 2.3820, val_sched_ce 3.6066, val_ce 3.0939, val_acc 0.4127
+{
+ "run": "kd_l75",
+ "wall_clock_s": 1545.0,
+ "final": {
+  "val_traj": 1.3494602120166888,
+  "val_span_ce": 2.3820477107258875,
+  "val_sched_ce": 3.6066359504955723,
+  "val_ce": 3.0938507775215567,
+  "val_acc": 0.4127276875689242
+ }
+}

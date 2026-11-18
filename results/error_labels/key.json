@@ -1,0 +1,322 @@
+{
+ "S001": {
+  "system": "kd_l100_K8",
+  "prompt_id": "short-061"
+ },
+ "S002": {
+  "system": "kd_l100_K8",
+  "prompt_id": "longer-067"
+ },
+ "S003": {
+  "system": "ce_K8",
+  "prompt_id": "longer-059"
+ },
+ "S004": {
+  "system": "teacher_K32",
+  "prompt_id": "longer-050"
+ },
+ "S005": {
+  "system": "ce_K8",
+  "prompt_id": "longer-067"
+ },
+ "S006": {
+  "system": "ce_K8",
+  "prompt_id": "character-022"
+ },
+ "S007": {
+  "system": "teacher_K8",
+  "prompt_id": "character-089"
+ },
+ "S008": {
+  "system": "teacher_K8",
+  "prompt_id": "action-040"
+ },
+ "S009": {
+  "system": "teacher_K8",
+  "prompt_id": "short-063"
+ },
+ "S010": {
+  "system": "teacher_K8",
+  "prompt_id": "character-022"
+ },
+ "S011": {
+  "system": "teacher_K32",
+  "prompt_id": "character-066"
+ },
+ "S012": {
+  "system": "teacher_K32",
+  "prompt_id": "action-017"
+ },
+ "S013": {
+  "system": "kd_l100_K8",
+  "prompt_id": "action-040"
+ },
+ "S014": {
+  "system": "ce_K8",
+  "prompt_id": "action-017"
+ },
+ "S015": {
+  "system": "ce_K8",
+  "prompt_id": "action-092"
+ },
+ "S016": {
+  "system": "teacher_K32",
+  "prompt_id": "longer-059"
+ },
+ "S017": {
+  "system": "teacher_K32",
+  "prompt_id": "longer-051"
+ },
+ "S018": {
+  "system": "teacher_K32",
+  "prompt_id": "character-052"
+ },
+ "S019": {
+  "system": "ce_K8",
+  "prompt_id": "longer-051"
+ },
+ "S020": {
+  "system": "kd_l100_K8",
+  "prompt_id": "longer-051"
+ },
+ "S021": {
+  "system": "ce_K8",
+  "prompt_id": "short-063"
+ },
+ "S022": {
+  "system": "teacher_K32",
+  "prompt_id": "longer-067"
+ },
+ "S023": {
+  "system": "ce_K8",
+  "prompt_id": "action-036"
+ },
+ "S024": {
+  "system": "ce_K8",
+  "prompt_id": "character-066"
+ },
+ "S025": {
+  "system": "teacher_K8",
+  "prompt_id": "longer-067"
+ },
+ "S026": {
+  "system": "kd_l100_K8",
+  "prompt_id": "longer-050"
+ },
+ "S027": {
+  "system": "ce_K8",
+  "prompt_id": "short-092"
+ },
+ "S028": {
+  "system": "ce_K8",
+  "prompt_id": "short-022"
+ },
+ "S029": {
+  "system": "ce_K8",
+  "prompt_id": "longer-063"
+ },
+ "S030": {
+  "system": "teacher_K32",
+  "prompt_id": "character-097"
+ },
+ "S031": {
+  "system": "kd_l100_K8",
+  "prompt_id": "short-095"
+ },
+ "S032": {
+  "system": "kd_l100_K8",
+  "prompt_id": "character-052"
+ },
+ "S033": {
+  "system": "teacher_K32",
+  "prompt_id": "short-092"
+ },
+ "S034": {
+  "system": "teacher_K32",
+  "prompt_id": "short-063"
+ },
+ "S035": {
+  "system": "ce_K8",
+  "prompt_id": "short-061"
+ },
+ "S036": {
+  "system": "teacher_K8",
+  "prompt_id": "action-092"
+ },
+ "S037": {
+  "system": "ce_K8",
+  "prompt_id": "character-089"
+ },
+ "S038": {
+  "system": "teacher_K8",
+  "prompt_id": "short-061"
+ },
+ "S039": {
+  "system": "ce_K8",
+  "prompt_id": "action-040"
+ },
+ "S040": {
+  "system": "teacher_K32",
+  "prompt_id": "action-067"
+ },
+ "S041": {
+  "system": "teacher_K8",
+  "prompt_id": "longer-063"
+ },
+ "S042": {
+  "system": "ce_K8",
+  "prompt_id": "character-052"
+ },
+ "S043": {
+  "system": "ce_K8",
+  "prompt_id": "short-095"
+ },
+ "S044": {
+  "system": "kd_l100_K8",
+  "prompt_id": "short-092"
+ },
+ "S045": {
+  "system": "teacher_K8",
+  "prompt_id": "character-097"
+ },
+ "S046": {
+  "system": "kd_l100_K8",
+  "prompt_id": "longer-063"
+ },
+ "S047": {
+  "system": "ce_K8",
+  "prompt_id": "character-097"
+ },
+ "S048": {
+  "system": "teacher_K32",
+  "prompt_id": "character-022"
+ },
+ "S049": {
+  "system": "kd_l100_K8",
+  "prompt_id": "action-092"
+ },
+ "S050": {
+  "system": "kd_l100_K8",
+  "prompt_id": "character-097"
+ },
+ "S051": {
+  "system": "kd_l100_K8",
+  "prompt_id": "character-089"
+ },
+ "S052": {
+  "system": "teacher_K8",
+  "prompt_id": "short-092"
+ },
+ "S053": {
+  "system": "kd_l100_K8",
+  "prompt_id": "action-017"
+ },
+ "S054": {
+  "system": "kd_l100_K8",
+  "prompt_id": "action-036"
+ },
+ "S055": {
+  "system": "teacher_K8",
+  "prompt_id": "action-017"
+ },
+ "S056": {
+  "system": "teacher_K8",
+  "prompt_id": "character-052"
+ },
+ "S057": {
+  "system": "teacher_K32",
+  "prompt_id": "longer-063"
+ },
+ "S058": {
+  "system": "ce_K8",
+  "prompt_id": "longer-050"
+ },
+ "S059": {
+  "system": "teacher_K32",
+  "prompt_id": "action-092"
+ },
+ "S060": {
+  "system": "teacher_K32",
+  "prompt_id": "character-089"
+ },
+ "S061": {
+  "system": "kd_l100_K8",
+  "prompt_id": "short-063"
+ },
+ "S062": {
+  "system": "kd_l100_K8",
+  "prompt_id": "action-067"
+ },
+ "S063": {
+  "system": "teacher_K8",
+  "prompt_id": "longer-050"
+ },
+ "S064": {
+  "system": "teacher_K8",
+  "prompt_id": "longer-059"
+ },
+ "S065": {
+  "system": "kd_l100_K8",
+  "prompt_id": "longer-059"
+ },
+ "S066": {
+  "system": "teacher_K8",
+  "prompt_id": "longer-051"
+ },
+ "S067": {
+  "system": "ce_K8",
+  "prompt_id": "action-067"
+ },
+ "S068": {
+  "system": "teacher_K32",
+  "prompt_id": "action-040"
+ },
+ "S069": {
+  "system": "teacher_K32",
+  "prompt_id": "short-061"
+ },
+ "S070": {
+  "system": "teacher_K8",
+  "prompt_id": "action-067"
+ },
+ "S071": {
+  "system": "teacher_K32",
+  "prompt_id": "short-095"
+ },
+ "S072": {
+  "system": "teacher_K8",
+  "prompt_id": "short-095"
+ },
+ "S073": {
+  "system": "teacher_K8",
+  "prompt_id": "short-022"
+ },
+ "S074": {
+  "system": "kd_l100_K8",
+  "prompt_id": "short-022"
+ },
+ "S075": {
+  "system": "teacher_K32",
+  "prompt_id": "action-036"
+ },
+ "S076": {
+  "system": "kd_l100_K8",
+  "prompt_id": "character-022"
+ },
+ "S077": {
+  "system": "teacher_K32",
+  "prompt_id": "short-022"
+ },
+ "S078": {
+  "system": "teacher_K8",
+  "prompt_id": "action-036"
+ },
+ "S079": {
+  "system": "teacher_K8",
+  "prompt_id": "character-066"
+ },
+ "S080": {
+  "system": "kd_l100_K8",
+  "prompt_id": "character-066"
+ }
+}

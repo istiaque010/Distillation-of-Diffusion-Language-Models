@@ -1,0 +1,36 @@
+# Project 7 decoding configurations and selection rule. Written BEFORE any student was trained (Phase 11).
+# A system is "<model>@<decoder>" or "<model>@<decoder>@<sampling>":
+#   model    teacher (frozen MDLM-13.9M) or a student run of configs/distill.yaml
+#   decoder  Project 6 decoder name (pardec.decode.name). Main decoder: random order + no-adjacent, linear quota,
+#            early stop, lazy logits = Project 6's best ("full-random-K{S}+noadj+stop+lazy").
+#   sampling top-k 20 (default, Projects 3-6) or topk20t0.8 (top-k 20 at temperature 0.8: a sharpening control)
+# Every system: same prompts, same budget (one 256-token window, 255 - prompt tokens; the story ends at the first
+# <EOS>), batches of 50, generator seed 6000 + 100 * seed + batch (as in Projects 5-6).
+
+main_decoder: "full-random-K{S}+noadj+stop+lazy"
+confidence_decoder: "full-conf-K{S}+stop+lazy"      # the guide's "fixed confidence-ranking rule"
+
+dev:              # 200 validation prompts, seed 0
+  teacher: [4, 8, 16, 32]
+  teacher_extra:
+    - teacher@full-random-K8+noadj+stop+lazy@topk20t0.8
+    - teacher@full-random-K4+noadj+stop+lazy@topk20t0.8
+    - teacher@full-conf-K8+stop+lazy
+  students: [4, 8, 16]          # every run of configs/distill.yaml at these passes
+  student_extra:
+    - kd@full-conf-K8+stop+lazy
+    - ce@full-conf-K8+stop+lazy
+
+selection:        # applied unchanged to the dev results by distill.select
+  acceptable: {max_repetitive: 0.10, min_distinct_2: 0.40}      # Project 6's rule
+  quality: scorer_ppl                                           # TinyStories-33M, lower is better
+  kd_best: lowest dev scorer_ppl at 8 passes among acceptable same-size KD runs (kd, kd_l25, kd_l75, kd_l100,
+           kd_T1, kd_T4, kd_state); the pre-registered main run 'kd' is always carried to test as well
+  carry_to_test:
+    - teacher at 32, 16, 8, 4 passes
+    - teacher at 8 passes, top-k 20 at temperature 0.8 (sharpening control)
+    - teacher at 8 passes with confidence order
+    - ce at 16, 8, 4 passes
+    - kd_best at 16, 8, 4 passes, and at 8 passes with confidence order
+    - kd (if not kd_best), kd_state and kd_small at 8 passes
+  test: {split: test, prompts: 400, seeds: [0, 1, 2]}

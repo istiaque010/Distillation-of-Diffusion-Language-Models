@@ -1,0 +1,57 @@
+50/6300 trajectories, 14 s, eta 1704 s
+550/6300 trajectories, 155 s, eta 1617 s
+1050/6300 trajectories, 297 s, eta 1485 s
+1550/6300 trajectories, 440 s, eta 1349 s
+2050/6300 trajectories, 586 s, eta 1215 s
+2550/6300 trajectories, 728 s, eta 1071 s
+3050/6300 trajectories, 870 s, eta 927 s
+3550/6300 trajectories, 1006 s, eta 780 s
+4050/6300 trajectories, 1142 s, eta 634 s
+4550/6300 trajectories, 1278 s, eta 492 s
+5050/6300 trajectories, 1418 s, eta 351 s
+5550/6300 trajectories, 1561 s, eta 211 s
+6050/6300 trajectories, 1704 s, eta 70 s
+{
+ "decoder": "full-random-K32+noadj+lazy",
+ "sampling": "topk20",
+ "n": 6300,
+ "held_out": 300,
+ "seconds": 1774.9,
+ "s_per_trajectory": 0.2817,
+ "tokens_per_pass_mean": [
+  7.51,
+  7.31,
+  7.09,
+  7.2,
+  7.07,
+  7.08,
+  7.18,
+  7.11,
+  7.33,
+  6.99,
+  7.11,
+  7.14,
+  7.22,
+  7.06,
+  7.21,
+  6.88,
+  7.42,
+  7.15,
+  7.11,
+  7.13,
+  7.23,
+  7.05,
+  7.05,
+  7.15,
+  7.28,
+  7.12,
+  7.14,
+  6.98,
+  7.29,
+  7.03,
+  7.37,
+  6.51
+ ],
+ "ended_with_eos_rate": 0.7731746031746032,
+ "stored_bytes_per_trajectory": 1280
+}

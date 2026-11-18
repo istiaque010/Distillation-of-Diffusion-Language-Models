@@ -1,0 +1,28 @@
+Loading weights:   0%|          | 0/56 [00:00<?, ?it/s]Loading weights: 100%|██████████| 56/56 [00:00<00:00, 27968.69it/s]
+[transformers] [1mGPTNeoForCausalLM LOAD REPORT[0m from: D:\TTI\Projrcts List\project4\checkpoints\scorer_tinystories33m
+Key                                                   | Status     |  | 
+------------------------------------------------------+------------+--+-
+transformer.h.{0, 1, 2, 3}.attn.attention.bias        | UNEXPECTED |  | 
+transformer.h.{0, 1, 2, 3}.attn.attention.masked_bias | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+8 systems on 200 prompts x 1 seeds
+teacher@full-random-K16+noadj+stop: 200 stories, gen 68 s, score 12 s
+teacher@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 12 s
+teacher@full-random-K8+noadj+stop+lazy: 200 stories, gen 17 s, score 13 s
+teacher@full-random-K16+noadj+stop+lazy: 200 stories, gen 31 s, score 12 s
+teacher@full-random-K32+noadj+stop+lazy: 200 stories, gen 57 s, score 12 s
+teacher@full-random-K8+noadj+stop+lazy@topk20t0.8: 200 stories, gen 18 s, score 13 s
+teacher@full-random-K4+noadj+stop+lazy@topk20t0.8: 200 stories, gen 11 s, score 13 s
+teacher@full-conf-K8+stop+lazy: 200 stories, gen 18 s, score 13 s
+real-reference                                                 passes   0.0  ppl     4.4  D2 0.621  rep   6.5%  dup 0.01%
+teacher@full-random-K4+noadj+stop+lazy                         passes   4.0  ppl   113.3  D2 0.547  rep   0.0%  dup 0.22%
+teacher@full-random-K4+noadj+stop+lazy@topk20t0.8              passes   4.0  ppl    83.9  D2 0.504  rep   1.0%  dup 0.20%
+teacher@full-conf-K8+stop+lazy                                 passes   7.3  ppl  3453.3  D2 0.491  rep   0.0%  dup 3.87%
+teacher@full-random-K8+noadj+stop+lazy                         passes   8.0  ppl    60.9  D2 0.535  rep   0.5%  dup 0.23%
+teacher@full-random-K8+noadj+stop+lazy@topk20t0.8              passes   8.0  ppl    43.9  D2 0.491  rep   1.5%  dup 0.21%
+teacher@full-random-K16+noadj+stop                             passes  16.0  ppl    47.8  D2 0.526  rep   0.5%  dup 0.22%
+teacher@full-random-K16+noadj+stop+lazy                        passes  16.0  ppl    48.3  D2 0.517  rep   0.5%  dup 0.23%
+teacher@full-random-K32+noadj+stop+lazy                        passes  32.0  ppl    40.2  D2 0.517  rep   2.5%  dup 0.22%
+{"project7_rows": 200, "project6_rows": 200, "identical_stories": 200, "all_identical": true}

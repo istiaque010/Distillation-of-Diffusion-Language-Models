@@ -1,0 +1,35 @@
+# Project 7 training runs. Written BEFORE any student was trained (Phase 11).
+# Every run starts from an exact copy of the teacher (Project 3 mdlm_base, MDLM-13.9M) and sees exactly the same
+# stream of states (same numpy seed): 8 trajectory states + 8 real states per update, 1,500 updates.
+# Only the loss (lambda_KD, T, target type) or the student's depth changes from run to run.
+#   lambda_CE = 1 - lambda_KD.   lambda_KD = 0 is the CE-only student (extra training without the teacher).
+#   targets: traj  = trajectory targets: hard teacher tokens for the positions the teacher fixed during the span of
+#                    one student pass, the teacher's soft distribution at its LATER state for the rest (main method)
+#            state = the guide's beginner target: the teacher's soft distribution at the SAME state
+common:
+  steps: 1500
+  traj_batch: 8
+  real_batch: 8
+  budgets: [4, 8, 16]        # student passes; one student is trained for all three
+  lr: 3.0e-5                 # fine-tuning; 1e-4 (pilot run, results/metrics/train_pilot) made held-out loss WORSE
+  min_lr: 3.0e-6
+  warmup_steps: 100
+  weight_decay: 0.1
+  betas: [0.9, 0.95]
+  grad_clip: 1.0
+  dropout: 0.1               # as in Project 3's training
+  seed: 7007
+  eval_every: 250
+  eval_states: 400           # fixed held-out states for the validation numbers
+  threads: 24
+
+runs:
+  ce:        {lambda_kd: 0.0,  T: 2, targets: traj}                       # CE-only control
+  kd:        {lambda_kd: 0.5,  T: 2, targets: traj}                       # main: the guide's starter setting
+  kd_l25:    {lambda_kd: 0.25, T: 2, targets: traj}
+  kd_l75:    {lambda_kd: 0.75, T: 2, targets: traj}
+  kd_l100:   {lambda_kd: 1.0,  T: 2, targets: traj}                       # teacher only, no real labels
+  kd_T1:     {lambda_kd: 0.5,  T: 1, targets: traj}
+  kd_T4:     {lambda_kd: 0.5,  T: 4, targets: traj}
+  kd_state:  {lambda_kd: 0.5,  T: 2, targets: state}                      # same-state soft targets only
+  kd_small:  {lambda_kd: 0.5,  T: 2, targets: traj, layers: [0, 2, 3, 5]}  # 4 of the teacher's 6 layers

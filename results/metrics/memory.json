@@ -1,0 +1,50 @@
+[
+ {
+  "name": "teacher@full-random-K32+noadj+stop+lazy",
+  "batch": 1,
+  "peak_added_mb": 0.4765625,
+  "process_rss_mb": 341.30078125,
+  "params": 13891968,
+  "weights_mb": 64.9951171875
+ },
+ {
+  "name": "teacher@full-random-K32+noadj+stop+lazy",
+  "batch": 16,
+  "peak_added_mb": 205.96484375,
+  "process_rss_mb": 595.71875,
+  "params": 13891968,
+  "weights_mb": 64.9951171875
+ },
+ {
+  "name": "kd_l100@full-random-K8+noadj+stop+lazy",
+  "batch": 1,
+  "peak_added_mb": 0.27734375,
+  "process_rss_mb": 341.4140625,
+  "params": 13891968,
+  "weights_mb": 64.9951171875
+ },
+ {
+  "name": "kd_l100@full-random-K8+noadj+stop+lazy",
+  "batch": 16,
+  "peak_added_mb": 142.8984375,
+  "process_rss_mb": 581.578125,
+  "params": 13891968,
+  "weights_mb": 64.9951171875
+ },
+ {
+  "name": "kd_small@full-random-K8+noadj+stop+lazy",
+  "batch": 1,
+  "peak_added_mb": 0.0859375,
+  "process_rss_mb": 315.69921875,
+  "params": 10343040,
+  "weights_mb": 51.45703125
+ },
+ {
+  "name": "kd_small@full-random-K8+noadj+stop+lazy",
+  "batch": 16,
+  "peak_added_mb": 159.7890625,
+  "process_rss_mb": 566.53125,
+  "params": 10343040,
+  "weights_mb": 51.45703125
+ }
+]

@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diffusion Step Distillation</title>
+<meta name="description" content="Project 7 tutorial: distilling a small masked diffusion language model so that a student writes stories in 4-16 passes instead of 32, by learning from the teacher's own denoising trajectories, measured on a CPU against fair controls. Every step, why, the result, and how it led to the next step.">
+<style>
+:root {
+  --bg: #f7f6f3; --surface: #ffffff; --surface-2: #f1efea; --text: #1f2328; --muted: #5d6470;
+  --border: #e2ded6; --accent: #2f6fdb; --accent-soft: #e6eefc; --good: #1f8a4c; --good-soft: #e3f4ea;
+  --warn: #b26a00; --warn-soft: #fdf1dc; --bad: #c0392b; --bad-soft: #fbe6e3; --code-bg: #f3f1ec;
+  --teacher: #7a4fd0; --scratch: #d95926; --kd: #1f8a4c; --kd2: #2a78d6; --kd3: #c2477e; --kd4: #a88700;
+  --grid: #e1e0d9; --axis: #c3c2b7; --diffs: #8fb8ea;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171b; --surface: #1d2026; --surface-2: #242830; --text: #e7e9ee; --muted: #a0a7b4;
+    --border: #323742; --accent: #7aa7ff; --accent-soft: #1f2b44; --good: #5cc98a; --good-soft: #17301f;
+    --warn: #f0b45a; --warn-soft: #33281a; --bad: #ff8a7a; --bad-soft: #3a1f1c; --code-bg: #262a32;
+    --teacher: #b394ff; --scratch: #f08a4b; --kd: #5cc98a; --kd2: #6fa8ff; --kd3: #ee7aab; --kd4: #d6c34a;
+    --grid: #2c2f36; --axis: #3e434d; --diffs: #3f6db0;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171b; --surface: #1d2026; --surface-2: #242830; --text: #e7e9ee; --muted: #a0a7b4;
+  --border: #323742; --accent: #7aa7ff; --accent-soft: #1f2b44; --good: #5cc98a; --good-soft: #17301f;
+  --warn: #f0b45a; --warn-soft: #33281a; --bad: #ff8a7a; --bad-soft: #3a1f1c; --code-bg: #262a32;
+  --teacher: #b394ff; --scratch: #f08a4b; --kd: #5cc98a; --kd2: #6fa8ff; --kd3: #ee7aab; --kd4: #d6c34a;
+  --grid: #2c2f36; --axis: #3e434d; --diffs: #3f6db0;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+code, pre { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code-bg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; line-height: 1.5; }
+pre code { background: none; padding: 0; }
+h1, h2, h3, h4 { line-height: 1.25; }
+.layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 32px; max-width: 1180px;
+  margin: 0 auto; padding: 24px 16px 80px; }
+nav.toc { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow-y: auto; font-size: 14px; }
+nav.toc h4 { margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 12px; }
+nav.toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--border); color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a.active { color: var(--accent); border-left-color: var(--accent); }
+nav.toc .group { margin: 14px 0 4px; font-weight: 600; color: var(--text); font-size: 13px; }
+main { min-width: 0; }
+header.hero { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; }
+header.hero h1 { margin: 0 0 8px; font-size: 30px; }
+header.hero p { margin: 6px 0; color: var(--muted); max-width: 72ch; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--good-soft); color: var(--good); }
+section { margin-top: 36px; }
+section > h2 { font-size: 24px; margin: 0 0 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 18px; }
+.stat { background: var(--surface-2); border-radius: 10px; padding: 14px; }
+.stat .v { font-size: 26px; font-weight: 700; }
+.stat .l { font-size: 13px; color: var(--muted); }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+.flow span.box { background: var(--accent-soft); color: var(--text); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
+.flow span.box.t { background: color-mix(in srgb, var(--teacher) 18%, var(--surface)); }
+.flow span.box.s { background: color-mix(in srgb, var(--kd) 18%, var(--surface)); }
+.flow span.arrow { color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 10px 0; }
+.tw { overflow-x: auto; }
+th, td { border-bottom: 1px solid var(--border); padding: 7px 9px; text-align: left; vertical-align: top; }
+th { background: var(--surface-2); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.phase { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; margin-top: 22px; }
+.phase-head { display: flex; gap: 14px; align-items: center; }
+.phase-num { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--surface); font-weight: 700; font-size: 17px; }
+.phase-head h3 { margin: 0; font-size: 21px; }
+.phase-head .sub { color: var(--muted); font-size: 14px; }
+.part { margin-top: 16px; }
+.part > h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.part p { margin: 6px 0; }
+.part ul { margin: 6px 0; padding-left: 22px; }
+.analogy { background: var(--surface-2); border-radius: 10px; padding: 10px 14px; font-size: 15px; }
+.analogy::before { content: "Think of it like this: "; font-weight: 600; }
+.decide { background: var(--good-soft); border-left: 4px solid var(--good); border-radius: 8px; padding: 12px 16px; margin-top: 16px; }
+.decide h4 { margin: 0 0 6px; color: var(--good); font-size: 14px; text-transform: uppercase; letter-spacing: .05em; }
+.decide p, .decide ul { margin: 4px 0; }
+.warn { background: var(--warn-soft); border-left: 4px solid var(--warn); border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+.warn b { color: var(--warn); }
+.note { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+.bar { height: 10px; border-radius: 5px; background: var(--accent); display: inline-block; vertical-align: middle; }
+.bar.bad { background: var(--bad); } .bar.good { background: var(--good); }
+.theme-btn { float: right; background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.gloss dt { font-weight: 600; margin-top: 10px; }
+.gloss dd { margin: 2px 0 0 0; color: var(--muted); }
+.gloss .grp { margin-top: 18px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); font-weight: 700; }
+/* ideas + demos */
+.idea { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; margin-top: 22px; }
+.idea > h3 { margin: 0 0 4px; font-size: 21px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.idea > h3 .tag { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
+.idea .lead { color: var(--muted); margin: 0 0 8px; }
+.demo { background: var(--surface-2); border-radius: 12px; padding: 16px; margin-top: 14px; }
+.demo-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+.demo-note { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.btn { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.on { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.bars { display: grid; grid-template-columns: max-content minmax(0, 1fr) 62px; gap: 6px 10px; align-items: center; margin-top: 8px; }
+.bars .lab { font-family: ui-monospace, Consolas, monospace; font-size: 14px; white-space: pre; }
+.bars .track { height: 14px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.bars .fill { height: 100%; border-radius: 0 4px 4px 0; background: var(--kd2); transition: width .45s ease; }
+.bars .fill.rest { background: var(--axis); }
+.bars .fill.win { background: var(--good); }
+.bars .fill.t { background: var(--teacher); }
+.bars .val { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.facts { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--muted); margin-top: 10px; }
+.facts b { color: var(--text); }
+input[type=range] { width: 100%; max-width: 420px; accent-color: var(--accent); }
+.stackbar { display: flex; height: 34px; border-radius: 6px; overflow: hidden; margin-top: 10px; background: var(--border); }
+.stackbar div { display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 600; transition: width .35s; white-space: nowrap; overflow: hidden; }
+.pkg { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
+.pkg > div { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+.pkg > div b { display: block; font-family: ui-monospace, Consolas, monospace; font-size: 13.5px; margin-bottom: 2px; }
+.pkg > div .use { color: var(--muted); font-size: 13px; margin-top: 6px; }
+.scale { position: relative; height: 70px; margin: 18px 10px 6px; }
+.scale .line { position: absolute; left: 0; right: 0; top: 30px; height: 4px; border-radius: 2px; background: var(--border); }
+.scale .seg { position: absolute; top: 30px; height: 4px; background: var(--good); }
+.scale .pt { position: absolute; top: 22px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; border: 3px solid var(--surface); }
+.scale .pl { position: absolute; top: 48px; transform: translateX(-50%); font-size: 12.5px; white-space: nowrap; text-align: center; }
+.scale .pl.up { top: 0; }
+.story { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-top: 10px; font-family: Georgia, "Times New Roman", serif; font-size: 15.5px; }
+.story .who { font-family: system-ui, sans-serif; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.story mark { background: var(--bad-soft); color: var(--bad); border-radius: 3px; padding: 0 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.legend button { font: inherit; font-size: 13px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 3px 10px; border-radius: 99px; cursor: pointer; }
+.legend button[aria-pressed="false"] { opacity: .4; }
+.legend i { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { fill: var(--muted); font-size: 12px; font-family: system-ui, sans-serif; }
+svg.chart .gridl { stroke: var(--grid); stroke-width: 1; }
+#tip { position: fixed; pointer-events: none; background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; font-size: 13px; box-shadow: 0 4px 14px rgba(0,0,0,.15); opacity: 0; transition: opacity .12s; z-index: 10; max-width: 260px; }
+.ts-wrap { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; }
+.ts-wrap .arrow-big { font-size: 28px; color: var(--muted); text-align: center; }
+.student .fill { animation: learn 4s ease-in-out infinite; }
+@keyframes learn { 0% { width: var(--start); } 60%, 100% { width: var(--end); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .student .fill { width: var(--end); }
+}
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; gap: 16px; }
+  nav.toc { position: static; max-height: none; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  header.hero { padding: 20px; }
+  header.hero h1 { font-size: 24px; }
+  .phase, .idea { padding: 18px 16px; }
+  .two { grid-template-columns: 1fr; }
+  .ts-wrap { grid-template-columns: 1fr; }
+  .ts-wrap .arrow-big { transform: rotate(90deg); }
+}
+
+/* from project 3 */
+.tokens { display: flex; flex-wrap: wrap; gap: 4px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13.5px; }
+.tok { padding: 2px 6px; border-radius: 5px; background: var(--surface); border: 1px solid var(--border); min-height: 24px; }
+.tok.p { font-weight: 700; }
+.tok.m { background: var(--axis); border-color: var(--axis); color: var(--muted); min-width: 30px; text-align: center; font-size: 11px; }
+.tok.new { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.agrid { display: grid; gap: 3px; font-size: 13px; }
+.agrid .ah { color: var(--muted); text-align: center; align-self: center; font-family: ui-monospace, Consolas, monospace; }
+.agrid .ah.hl { color: var(--accent); font-weight: 700; }
+.agrid .ac { height: 26px; border-radius: 4px; background: transparent; border: 1px dashed var(--axis); }
+.agrid .ac.on { background: color-mix(in srgb, var(--accent) 30%, var(--surface)); border: 1px solid transparent; }
+.agrid .ac.on.hl { background: var(--accent); }
+
+/* project 4 additions */
+:root { --ar: #0072B2; --dif: #D55E00; --conf: #CC79A7; --real: #7F7F7F; --ar5: #56B4E9; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ar: #5aa9e6; --dif: #f08a4b; --conf: #e39ac4; --real: #9aa0a6; --ar5: #8fd0f5; } }
+:root[data-theme="dark"] { --ar: #5aa9e6; --dif: #f08a4b; --conf: #e39ac4; --real: #9aa0a6; --ar5: #8fd0f5; }
+.flow span.box.a { background: color-mix(in srgb, var(--ar) 18%, var(--surface)); }
+.flow span.box.d { background: color-mix(in srgb, var(--dif) 18%, var(--surface)); }
+.ptext { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13.5px; line-height: 2; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; min-height: 64px; }
+.ptext .m { display: inline-block; background: var(--axis); color: var(--muted); border-radius: 4px; padding: 0 4px; font-size: 11px; line-height: 18px; margin: 0 1px; }
+.ptext .pr { font-weight: 700; }
+.key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+
+/* project 5 additions */
+:root { --rand: #D55E00; --noadj: #0072B2; --hyb: #009E73; --conf: #CC79A7; --thr: #6A5ACD; --real: #7F7F7F;
+  --c-model: #0072B2; --c-sample: #E69F00; --c-signal: #CC79A7; --c-select: #009E73; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --rand: #f08a4b; --noadj: #5aa9e6; --hyb: #3fc49a;
+  --conf: #e39ac4; --thr: #9d90f0; --real: #9aa0a6; --c-model: #5aa9e6; --c-sample: #f0b84a; --c-signal: #e39ac4; --c-select: #3fc49a; } }
+:root[data-theme="dark"] { --rand: #f08a4b; --noadj: #5aa9e6; --hyb: #3fc49a; --conf: #e39ac4; --thr: #9d90f0; --real: #9aa0a6;
+  --c-model: #5aa9e6; --c-sample: #f0b84a; --c-signal: #e39ac4; --c-select: #3fc49a; }
+.ptext { white-space: pre-wrap; line-height: 2.1; }
+.ptext span.t { border-radius: 4px; padding: 1px 0; transition: background .2s; }
+.ptext span.t.new { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.ptext span.t.pair { box-shadow: inset 0 -3px 0 var(--bad); }
+.ptext .m { min-width: 22px; text-align: center; }
+.forest { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 128px; gap: 8px 12px; align-items: center; font-size: 13.5px; margin-top: 10px; }
+.forest .ftrack { position: relative; height: 22px; }
+.forest .ftrack .axis1 { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); }
+.forest .ftrack .ci { position: absolute; top: 9px; height: 4px; border-radius: 2px; background: var(--axis); }
+.forest .ftrack .pt { position: absolute; top: 4px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid var(--surface); }
+.forest .fval { font-variant-numeric: tabular-nums; font-size: 12.5px; text-align: right; }
+.forest .fhead { font-size: 12px; color: var(--muted); }
+.mini { display: grid; grid-template-columns: max-content minmax(0, 1fr) 54px; gap: 5px 10px; align-items: center; font-size: 13.5px; margin-top: 8px; }
+.mini .track { height: 14px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.mini .fill { height: 100%; border-radius: 0 4px 4px 0; transition: width .45s ease; }
+.mini .val { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.mini .grp { grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 8px; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 2px 10px 2px 0; }
+.legend svg { width: 14px; height: 14px; }
+.verdict { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+.verdict.no { background: var(--bad-soft); color: var(--bad); }
+.verdict.yes { background: var(--good-soft); color: var(--good); }
+.verdict.part { background: var(--warn-soft); color: var(--warn); }
+@media (max-width: 860px) { .forest { grid-template-columns: 1fr 110px; } .forest .ftrack { grid-column: 1 / -1; order: 0; } }
+
+/* project 6 additions */
+:root { --l2r: #E69F00; --blkc: #882255; --blkr: #3a9fd8; --rev: #333333; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --l2r: #f0b84a; --blkc: #d0679a; --blkr: #7cc6f0; --rev: #e6e6e6; } }
+:root[data-theme="dark"] { --l2r: #f0b84a; --blkc: #d0679a; --blkr: #7cc6f0; --rev: #e6e6e6; }
+.ptext .bsep { display: inline-block; width: 3px; height: 1.3em; vertical-align: -3px; margin: 0 4px; border-radius: 2px; background: var(--blkc); }
+.ptext span.t.later { opacity: .45; }
+.blkstrip { display: flex; gap: 2px; margin-top: 10px; height: 26px; }
+.blkstrip div { flex: 1 1 0; border-radius: 4px; background: var(--border); position: relative; font-size: 11px; color: var(--muted); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.blkstrip div.pr { background: var(--text); color: var(--surface); flex-grow: .5; }
+.blkstrip div.done { background: color-mix(in srgb, var(--accent) 35%, var(--surface)); color: var(--text); }
+.blkstrip div.act { background: var(--accent); color: #fff; font-weight: 700; }
+.blkstrip div.skip { background: transparent; border: 1px dashed var(--axis); }
+.winbar { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 10px; align-items: center; font-size: 13px; margin-top: 8px; }
+.winbar .w { height: 18px; border-radius: 4px; display: flex; overflow: hidden; background: transparent; }
+.winbar .w span { height: 100%; }
+.errgrid { display: grid; grid-template-columns: max-content repeat(4, minmax(0, 1fr)); gap: 4px 8px; align-items: center; font-size: 13px; margin-top: 10px; }
+.errgrid .hd { font-size: 12px; color: var(--muted); text-align: center; }
+.errgrid .cell { height: 22px; border-radius: 4px; position: relative; background: var(--border); overflow: hidden; }
+.errgrid .cell i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0; }
+.errgrid .cell b { position: absolute; right: 6px; top: 2px; font-size: 12px; font-weight: 600; color: var(--text); }
+@media (max-width: 700px) { .errgrid { grid-template-columns: max-content repeat(4, minmax(0, 1fr)); font-size: 11.5px; } }
+</style>
+</head>
+<body>
+<div id="tip" role="tooltip"></div>
+<div class="layout">
+
+<nav class="toc" id="toc" aria-label="Contents">
+  <h4>Contents</h4>
+  <a href="#overview">The big picture</a>
+  <div class="group">Start here: basic ideas</div>
+  <a href="#b-model">1. The teacher and its passes</a>
+  <a href="#b-cost">2. Why fewer passes hurt</a>
+  <a href="#b-distill">3. What distillation is</a>
+  <a href="#b-traj">4. Trajectories and targets</a>
+  <a href="#b-loss">5. The loss: KL, T and λ</a>
+  <a href="#b-ce">6. The fair control</a>
+  <a href="#b-sharp">7. The sharpening trap</a>
+  <a href="#b-curves">8. Watching training</a>
+  <a href="#b-quality">9. Quality vs passes</a>
+  <a href="#b-speed">10. Speed</a>
+  <a href="#b-stories">11. Reading the stories</a>
+  <div class="group">From Projects 1–6 to Project 7</div>
+  <a href="#handover">What we reused</a>
+  <div class="group">The project</div>
+  <a href="#results">Final results</a>
+  <a href="#hyp">Predictions vs results</a>
+  <a href="#map">Decision map</a>
+  <div class="group">Part A: Set up</div>
+  <a href="#p1">1. The teacher</a>
+  <a href="#p2">2. Tools</a>
+  <a href="#p3">3. The target</a>
+  <a href="#p4">4. The student</a>
+  <div class="group">Part B: Build</div>
+  <a href="#p5">5. Trajectories</a>
+  <a href="#p6">6. Target pairs</a>
+  <a href="#p7">7. The loss</a>
+  <a href="#p8">8. Training</a>
+  <a href="#p9">9. Sampling</a>
+  <a href="#p10">10. Tests</a>
+  <div class="group">Part C: Measure</div>
+  <a href="#p11">11. Baselines</a>
+  <a href="#p12">12. Quality</a>
+  <a href="#p13">13. Speed and memory</a>
+  <a href="#p14">14. Ablations</a>
+  <div class="group">Part D: Understand and finish</div>
+  <a href="#p15">15. Errors</a>
+  <a href="#p16">16. Repository</a>
+  <a href="#lessons">Lessons learned</a>
+  <a href="#glossary">Glossary</a>
+</nav>
+
+<main>
+
+<header class="hero" id="overview">
+  <button class="theme-btn" id="themeBtn" type="button">Light / dark</button>
+  <span class="badge">All 16 phases done</span>
+  <h1>Distillation of Diffusion Language Models</h1>
+  <p style="margin-top:0;font-size:19px;color:var(--text)">Can a student learn to write in 8 passes what its teacher needs 32 for?</p>
+  <p style="margin-top:0"><b>Project 7 tutorial</b></p>
+  <p>Project 3 trained a small <b>masked diffusion</b> language model (MDLM-13.9M). It writes a story by filling blanks
+    over many <b>passes</b> (calls of the model). Projects 5 and 6 kept it frozen and improved the <i>decoder</i>. Project
+    7 changes the <b>model</b> instead: we train a <b>student</b> to imitate what the slow teacher does over several
+    passes, so that the student needs fewer passes.</p>
+  <p>This page explains every step: <b>what</b> we did, <b>why</b>, what <b>result</b> we got, and <b>how that result
+    told us what to do next</b>. You don't need to read Projects 1–6 first. Idea 1 recaps what you need.</p>
+
+  <h3 style="margin-top:22px">The one question</h3>
+  <p style="color:var(--text)"><b>Can a diffusion language model be distilled so that it needs fewer denoising steps
+    while keeping the quality of the slow teacher?</b></p>
+
+  <h3 style="margin-top:22px">The one idea behind everything</h3>
+<pre><code>teacher: 32 small steps  ──►  record what it fixes in each step  ──►  student: learn to make 4 of them in ONE step
+fewer passes = faster.   The question is whether the student's stories stay as good.</code></pre>
+
+  <h3 style="margin-top:22px">The short answer</h3>
+  <p style="color:var(--text)"><b>Partly, and mostly through sharpening.</b> After 26 minutes of training on a CPU, the
+    student writes stories at <b>8 passes as well as the teacher at 16</b>, <b>20% better than the teacher at 8</b>, and
+    <b>3.4× faster than the teacher at 32</b>. The teacher's guidance clearly helps beyond extra training on real text.
+    But the student's stories are <b>less varied</b>, and simply turning the teacher's <b>temperature</b> down to 0.8,
+    with no training at all, gives even lower perplexity with more variety. Most of what the student learned is to be
+    <b>more confident</b>, not to tell better stories.</p>
+
+  <h3 style="margin-top:22px">The pipeline (the order we did things in)</h3>
+  <div class="flow">
+    <span class="box">Frozen teacher, same tools</span><span class="arrow">→</span>
+    <span class="box">6,300 teacher trajectories</span><span class="arrow">→</span>
+    <span class="box">Write predictions first</span><span class="arrow">→</span>
+    <span class="box">Pilot: learning rate too high</span><span class="arrow">→</span>
+    <span class="box">9 students × 1,500 updates</span><span class="arrow">→</span>
+    <span class="box">Pick the best on validation</span><span class="arrow">→</span>
+    <span class="box">Test: 16 systems × 1,200 stories</span><span class="arrow">→</span>
+    <span class="box">Speed · ablations · error review</span>
+  </div>
+</header>
+
+<!-- ===================== BASIC IDEAS ===================== -->
+<section id="basics">
+  <h2>Start here: the basic ideas</h2>
+  <div class="card">
+    <p>This part explains, one at a time, the ideas and words used in the project. Most figures can be played with:
+      press the buttons or point at things.</p>
+    <p><b>The numbers and stories in the figures are real.</b> They come from our models and our measurements. Where a
+      figure is only a sketch, it says so.</p>
+  </div>
+
+  <div class="idea" id="b-model">
+    <h3><span class="tag">Idea 1</span> The teacher writes by filling blanks, pass by pass</h3>
+    <p class="lead">The model from Project 3, unchanged and frozen.</p>
+    <p>A <b>language model</b> gives a probability to every possible <b>token</b> (a word or part of a word; our
+      tokenizer knows 8,192). Project 3's <b>MDLM-13.9M</b> is a <b>masked diffusion</b> model: it learned to guess
+      tokens hidden behind a <code>[MASK]</code> blank, using the words on <b>both sides</b>.</p>
+    <p>To write a story we give it the prompt followed by blanks (a window of 256 tokens). One <b>pass</b> gives a guess
+      for every blank at once. The <b>decoder</b> (Project 6's best) <b>fixes</b> some of those guesses for good, at
+      random positions but never two neighbours together, and calls the model again. With a budget of K passes it fixes
+      about 1/K of the blanks each time.</p>
+<pre><code>pass 0:  Once upon a time ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢ ▢
+pass 1:  Once upon a time ▢ ▢ girl ▢ ▢ ▢ park ▢ ▢ ▢ ▢ ▢
+pass 2:  Once upon a time ▢ little girl ▢ ▢ to park ▢ She ▢ ▢ ▢
+  ...    (32 passes for the "slow" teacher)</code></pre>
+    <p class="analogy">a painter who adds a few brush strokes per look at the canvas. More looks = a better picture,
+      but each look takes time.</p>
+  </div>
+
+  <div class="idea" id="b-cost">
+    <h3><span class="tag">Idea 2</span> Why fewer passes make worse stories</h3>
+    <p class="lead">Tokens fixed in the same pass can't see each other.</p>
+    <p>In one pass every blank's token is drawn <b>independently</b>, from what the model saw before the pass. With 32
+      passes, ~7 tokens are fixed per pass and each one sees almost everything already written. With 8 passes, ~30
+      tokens are drawn "blind" to each other per pass; with 4, ~60. They can disagree: "The <i>dog</i> … <i>she</i> …
+      <i>his</i> cat".</p>
+    <div class="demo">
+      <div class="demo-title">Teacher, no retraining: scorer perplexity by number of passes (test, 1,200 stories each)</div>
+      <div class="mini" id="cutBars"></div>
+      <p class="demo-note">Real. Lower is better (Idea 9 explains the measure). Real children's stories score 4.5.</p>
+    </div>
+    <p>Going from 32 to 8 passes makes the teacher's stories <b>52% worse</b>; to 4 passes, <b>2.8× worse</b>. That is
+      the gap distillation tries to close.</p>
+  </div>
+
+  <div class="idea" id="b-distill">
+    <h3><span class="tag">Idea 3</span> What distillation is</h3>
+    <p class="lead">A student learns from a teacher's answers, not only from the data.</p>
+    <p><b>Knowledge distillation</b> trains a <b>student</b> model on the outputs of a <b>teacher</b>. The teacher's output
+      is richer than the data: instead of "the right word is <i>park</i>", it says "<i>park</i> 40%, <i>garden</i> 25%,
+      <i>woods</i> 10%…". These are called <b>soft targets</b>.</p>
+    <p>Here we use it for <b>step distillation</b>: the student is not smaller (it starts as an <b>exact copy</b> of the
+      teacher), it is taught to do in <b>one</b> pass what the teacher does in several. So every difference comes from
+      training, not from size. (One extra student, <code>kd_small</code>, also drops 2 of the 6 layers.)</p>
+<pre><code>teacher:  state ─pass─► ─pass─► ─pass─► ─pass─► state 4 passes later
+student:  state ─────────── one pass ──────────► (should land in the same place)</code></pre>
+  </div>
+
+  <div class="idea" id="b-traj">
+    <h3><span class="tag">Idea 4</span> Trajectories: what the teacher did, pass by pass</h3>
+    <p class="lead">Record the slow teacher once, learn from it many times.</p>
+    <p>We let the teacher write 6,300 stories with 32 passes and stored, for every token, the <b>pass at which it was
+      fixed</b>. That is the whole <b>trajectory</b>: since fixed tokens never change, "the state after pass s" = all
+      tokens fixed at a pass ≤ s, blanks elsewhere.</p>
+    <p>A student with <b>S</b> passes makes one pass where the teacher made <b>32/S</b>. So before student pass j+1 it
+      sees the teacher's state after pass a = 32·j/S, and it must fix what the teacher fixed in passes a+1 … b (the
+      <b>span</b>, b = 32·(j+1)/S). Everything still blank after pass b is the <b>rest</b>.</p>
+    <div class="demo">
+      <div class="demo-title">One real teacher trajectory, cut into student passes</div>
+      <div class="controls" style="margin-top:0" id="tjS"></div>
+      <div class="controls"><label for="tjJ">Student pass:</label>
+        <input type="range" id="tjJ" min="0" max="7" value="1" style="max-width:300px">
+        <b id="tjJV">2</b><button class="btn" type="button" id="tjPlay">▶ Play</button></div>
+      <div class="ptext" id="tjText" style="margin-top:12px"></div>
+      <div class="facts" id="tjFacts"></div>
+      <p class="demo-note">Real: a held-out training prompt, the first 72 story tokens of the teacher's 32-pass
+        trajectory. Plain text = already fixed (what the student sees). <span style="color:var(--accent);font-weight:600">Blue</span>
+        = the span: what this one student pass must fix, with the teacher's token as the answer. Grey boxes = the rest:
+        still blank afterwards; here the student learns the teacher's probabilities.</p>
+    </div>
+  </div>
+
+  <div class="idea" id="b-loss">
+    <h3><span class="tag">Idea 5</span> The loss: KL divergence, temperature T and weight λ</h3>
+    <p class="lead">How "be like the teacher" becomes a number to minimise.</p>
+    <p><b>Cross-entropy (CE)</b> punishes the student for giving a low probability to the right token. <b>KL
+      divergence</b> measures how far the student's whole probability list is from the teacher's: 0 if identical.
+      We use KL(teacher ‖ student): the student must cover everything the teacher thinks possible.</p>
+    <p>The <b>temperature T</b> flattens both lists before comparing them (T = 2 makes the 2nd, 3rd… choices matter
+      more); the loss is multiplied by T² to keep its size. <b>λ</b> mixes the teacher signal with real text:</p>
+<pre><code>L_KD = span positions: CE(student, teacher's token)  +  rest positions: T²·KL(teacher_later/T ‖ student/T)
+L_CE = CE(student, real TinyStories token) on real masked windows
+L    = λ·L_KD + (1 − λ)·L_CE          λ = 0: no teacher at all · λ = 1: teacher only</code></pre>
+    <p>One subtle point, worked out <b>before</b> training: a student that is an exact copy of the teacher already
+      predicts the teacher's distribution <i>at the same state</i>, so "copy the teacher at the same state" teaches it
+      nothing. Only the teacher's <b>later</b> state (after more passes) contains something new.</p>
+  </div>
+
+  <div class="idea" id="b-ce">
+    <h3><span class="tag">Idea 6</span> The fair control: training without the teacher</h3>
+    <p class="lead">Is it the teacher, or just more training?</p>
+    <p>Any extra training might help. So we trained a <b>CE-only student</b> exactly like the others (same start, same
+      1,500 updates, same states, same seed) but with λ = 0: real text only. The teacher's contribution is <b>KD student
+      vs CE-only student</b>, not KD student vs teacher.</p>
+    <div class="note"><b>A mistake we caught:</b> the first CE-only run used learning rate 1e-4 and made every
+      held-out number <b>worse</b> (the teacher was already at its best and got knocked off). We lowered it to 3e-5 for
+      every run. Now the CE-only student stays flat: a fair control that neither helps nor hurts on held-out loss.</div>
+  </div>
+
+  <div class="idea" id="b-sharp">
+    <h3><span class="tag">Idea 7</span> The sharpening trap</h3>
+    <p class="lead">A cheaper way to look better.</p>
+    <p>The teacher's <b>later</b> predictions are more decided (more words are known). A student trained on them may
+      simply learn to be <b>more confident</b> everywhere. But confidence can be had for free: sample the teacher with
+      <b>temperature 0.8</b> (divide its scores by 0.8 before drawing), which favours likely tokens. Likely tokens =
+      lower perplexity, but also <b>less variety</b>.</p>
+    <div class="demo">
+      <div class="demo-title">8 passes, test set: fluency and variety side by side</div>
+      <div class="controls" style="margin-top:0" id="shMode"></div>
+      <div class="mini" id="shBars"></div>
+      <p class="demo-note">Real. Perplexity: lower = more fluent. Distinct-2: share of different word pairs, higher = more
+        varied.</p>
+    </div>
+    <p>The distilled student beats the plain teacher on perplexity but loses variety, and the temperature-0.8 teacher
+      does <b>better on both</b>. We predicted the opposite (H8) and were wrong.</p>
+  </div>
+
+  <div class="idea" id="b-curves">
+    <h3><span class="tag">Idea 8</span> Watching training</h3>
+    <p class="lead">Fixed held-out checks every 250 updates; update 0 = the untouched teacher.</p>
+    <div class="demo">
+      <div class="demo-title">Held-out loss during training (lower is better)</div>
+      <div class="controls" style="margin-top:0" id="cvMode"></div>
+      <div class="legend" id="cvLegend"></div>
+      <svg class="chart" id="cvChart" viewBox="0 0 640 320" role="img" aria-label="Training curves"></svg>
+      <p class="demo-note">Real. <b>span CE</b> = how well the student guesses the token the teacher will fix in the next
+        span. <b>real text CE</b> = how well it guesses hidden words of real stories, masked like a 4/8/16-pass decoder. The 4-layer student (off by default; click it in the legend) starts much higher because it lost two layers.</p>
+    </div>
+    <p>The KD students get better at the thing they are taught (span CE falls), and worse at real text the more weight
+      the teacher gets (λ = 1 loses most). They are moving toward the teacher's own style, away from real stories.</p>
+  </div>
+
+  <div class="idea" id="b-quality">
+    <h3><span class="tag">Idea 9</span> Quality vs passes</h3>
+    <p class="lead">Scorer perplexity: how surprised an independent model is by a story.</p>
+    <p>We can't read 20,000 stories, so a separate, bigger model (TinyStories-33M, the <b>scorer</b>) reads each one.
+      <b>Perplexity</b> = how surprised it is; lower = more fluent and predictable. Every system writes for the same
+      400 test prompts × 3 seeds, so comparisons are <b>paired</b>, with a 95% confidence interval (the bar on each
+      point).</p>
+    <div class="demo">
+      <div class="demo-title">Scorer perplexity by passes</div>
+      <div class="controls" style="margin-top:0" id="qvMode"></div>
+      <div class="legend" id="qvLegend"></div>
+      <svg class="chart" id="qvChart" viewBox="0 0 640 340" role="img" aria-label="Quality vs passes"></svg>
+      <p class="demo-note">Real. Log scales. Point at a marker for the numbers.</p>
+    </div>
+    <p>The KD student's curve sits a full "step" below the teacher's: <b>8 student passes ≈ 16 teacher passes</b>, and
+      16 student passes beat 32 teacher passes. The CE-only student barely moves.</p>
+  </div>
+
+  <div class="idea" id="b-speed">
+    <h3><span class="tag">Idea 10</span> Speed: it's just the number of passes</h3>
+    <p class="lead">A student pass costs the same as a teacher pass.</p>
+    <div class="demo">
+      <div class="demo-title">Median time per story, batch 1, CPU (40 stories each)</div>
+      <div class="mini" id="spBars"></div>
+      <p class="demo-note">Real. 24 CPU threads, fp32.</p>
+    </div>
+    <p>8 passes are 3.4× faster than 32 (86% of the ideal 4×; each pass also has a fixed cost for choosing and drawing
+      tokens). The 4-layer student is another 1.3× faster per pass, but its stories are worse than the untouched teacher's.</p>
+  </div>
+
+  <div class="idea" id="b-stories">
+    <h3><span class="tag">Idea 11</span> Reading the stories</h3>
+    <p class="lead">Numbers hide how stories go wrong.</p>
+    <div class="demo">
+      <div class="demo-title">Same test prompt, same seed, five systems</div>
+      <div class="controls" style="margin-top:0" id="stMode"></div>
+      <div class="story" id="stText"></div>
+    </div>
+    <p>We also had 80 stories (20 prompts × 4 systems) labelled <b>blind</b> on a 1–5 rubric and seven failure types.
+      <b>The labels were written by an AI assistant, not by people</b>, and are not human-verified.</p>
+    <div class="demo">
+      <div class="demo-title">Stories (of 20) with each problem: blind AI labels, not human</div>
+      <div class="errgrid" id="erGrid"></div>
+      <div class="facts" id="erFacts"></div>
+    </div>
+    <p>All four systems write weak stories (a 13.9 M model). The student finishes stories more often and keeps
+      characters more consistent, but coherence and grammar are no better than the teacher's at 8 passes.</p>
+  </div>
+</section>
+
+<section id="handover">
+  <h2>What we reused from Projects 1–6</h2>
+  <div class="card">
+    <div class="tw"><table>
+      <tr><th>From</th><th>What</th><th>Used for</th></tr>
+      <tr><td>Project 1</td><td>Tokenizer (8,192 tokens), the training split of TinyStories</td><td>Training prompts and real text for the CE loss</td></tr>
+      <tr><td>Project 3</td><td>MDLM-13.9M checkpoint, masking and validation protocol</td><td>The frozen teacher; every student starts as its copy</td></tr>
+      <tr><td>Project 4</td><td><code>bench</code>: scorer, 400 test prompts, quality measures, paired bootstrap</td><td>Every number comparable with Projects 4–6</td></tr>
+      <tr><td>Project 5</td><td>200 validation prompts, the no-adjacent rule</td><td>Choosing the best student without touching the test set</td></tr>
+      <tr><td>Project 6</td><td><code>pardec</code> decoder (random + no-adjacent, early stop, lazy)</td><td>The same decoder for teacher and students: only the model changes</td></tr>
+    </table></div>
+    <div class="note">Projects 1–6 are only <b>read</b>, never changed. Project 7's code lives in the package
+      <code>distill/</code>. A check at the start (Phase 1) confirmed the teacher, run through Project 7's code, writes
+      exactly Project 6's 200 validation stories.</div>
+  </div>
+</section>
+
+<section id="results">
+  <h2>Final results at a glance</h2>
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><div class="v">8 ≈ 16</div><div class="l">student at 8 passes ≈ teacher at 16 (ratio 1.065 [1.034, 1.097])</div></div>
+      <div class="stat"><div class="v">−20%</div><div class="l">perplexity vs the teacher at the same 8 passes (48.3 vs 59.9)</div></div>
+      <div class="stat"><div class="v">3.4×</div><div class="l">faster than the 32-pass teacher (106 vs 363 ms per story)</div></div>
+      <div class="stat"><div class="v">−16%</div><div class="l">vs a CE-only student: what the teacher's guidance adds</div></div>
+      <div class="stat"><div class="v">−0.06</div><div class="l">Distinct-2: the student is less varied</div></div>
+      <div class="stat"><div class="v">44.0</div><div class="l">teacher at temperature 0.8, no training: beats the student</div></div>
+    </div>
+    <div class="tw"><table style="margin-top:18px">
+      <tr><th>System (400 test prompts × 3 seeds)</th><th class="num">Passes</th><th class="num">Latency</th><th class="num">Scorer ppl [95% CI]</th><th class="num">Distinct-2</th><th class="num">Repetitive</th></tr>
+      <tr><td>real continuations</td><td class="num">–</td><td class="num">–</td><td class="num">4.5 [4.2, 4.9]</td><td class="num">0.541</td><td class="num">6.2%</td></tr>
+      <tr><td>teacher</td><td class="num">32</td><td class="num">363 ms</td><td class="num">39.4 [38.2, 40.7]</td><td class="num">0.430</td><td class="num">1.8%</td></tr>
+      <tr><td>teacher</td><td class="num">16</td><td class="num">190 ms</td><td class="num">45.3 [43.7, 47.0]</td><td class="num">0.437</td><td class="num">1.0%</td></tr>
+      <tr><td>teacher</td><td class="num">8</td><td class="num">104 ms</td><td class="num">59.9 [57.9, 62.0]</td><td class="num">0.441</td><td class="num">0.5%</td></tr>
+      <tr><td>teacher</td><td class="num">4</td><td class="num">63 ms</td><td class="num">109.1 [105.5, 112.8]</td><td class="num">0.453</td><td class="num">0.2%</td></tr>
+      <tr><td>teacher, temperature 0.8</td><td class="num">8</td><td class="num">–</td><td class="num">44.0 [42.5, 45.4]</td><td class="num">0.402</td><td class="num">2.7%</td></tr>
+      <tr><td>CE-only student</td><td class="num">8</td><td class="num">103 ms</td><td class="num">57.4 [55.6, 59.3]</td><td class="num">0.426</td><td class="num">0.2%</td></tr>
+      <tr><td><b>KD student (kd_l100)</b></td><td class="num">16</td><td class="num">–</td><td class="num"><b>36.5</b> [35.4, 37.6]</td><td class="num"><i>0.370</i></td><td class="num">5.1%</td></tr>
+      <tr><td><b>KD student (kd_l100)</b></td><td class="num">8</td><td class="num"><b>106 ms</b></td><td class="num"><b>48.3</b> [46.7, 49.9]</td><td class="num"><i>0.383</i></td><td class="num">2.8%</td></tr>
+      <tr><td><b>KD student (kd_l100)</b></td><td class="num">4</td><td class="num">61 ms</td><td class="num"><b>87.4</b> [84.4, 90.4]</td><td class="num"><i>0.395</i></td><td class="num">0.8%</td></tr>
+      <tr><td>KD student, same-state targets</td><td class="num">8</td><td class="num">–</td><td class="num">56.3 [54.4, 58.2]</td><td class="num">0.419</td><td class="num">0.6%</td></tr>
+      <tr><td>KD student, 4 layers</td><td class="num">8</td><td class="num">83 ms</td><td class="num">65.6 [63.3, 67.9]</td><td class="num"><i>0.380</i></td><td class="num">1.5%</td></tr>
+      <tr><td>teacher, confidence order</td><td class="num">7.4</td><td class="num">–</td><td class="num">3351</td><td class="num">0.411</td><td class="num">0.0%</td></tr>
+    </table></div>
+    <p>"–" = not timed. Italics = below the acceptability rule (Distinct-2 ≥ 0.40) on the test set. Every system passed
+      it on validation, where each group pools 50 stories instead of 100 (fewer stories = higher Distinct-2).</p>
+    <p><b>In one sentence:</b> distillation from teacher trajectories halves the passes needed for a given perplexity, but
+      on this small model most of that gain is a sharper distribution, which a lower sampling temperature also gives.</p>
+  </div>
+</section>
+
+<section id="hyp">
+  <h2>Predictions vs results</h2>
+  <div class="card">
+    <p>All eight predictions were written in <code>configs/hypotheses.md</code> <b>before</b> any student was trained.
+      Ratio &lt; 1 = the first system has lower (better) perplexity; 95% interval from the paired bootstrap.</p>
+    <div class="tw"><table>
+      <tr><th>#</th><th>Prediction</th><th>Test</th><th class="num">Result</th><th>Verdict</th></tr>
+      <tr><td>H1</td><td>Cutting passes costs quality</td><td>teacher 8 vs 32</td><td class="num">1.520 [1.482, 1.558]</td><td class="verdict">✅ yes</td></tr>
+      <tr><td>H2</td><td>Extra training alone helps</td><td>CE-only 8 vs teacher 8</td><td class="num">0.958 [0.940, 0.978]</td><td class="verdict">✅ yes, small</td></tr>
+      <tr><td>H3</td><td>The teacher adds more than extra training</td><td>KD 8 vs CE-only 8</td><td class="num">0.841 [0.822, 0.861]</td><td class="verdict">✅ yes</td></tr>
+      <tr><td>H4</td><td>Student at 8 ≈ teacher at 16</td><td>upper bound ≤ 1.10</td><td class="num">1.065 [1.034, 1.097]</td><td class="verdict">✅ yes</td></tr>
+      <tr><td>H5</td><td>4 passes become usable</td><td>better than teacher 4 and Distinct-2 ≥ 0.40</td><td class="num">0.801; D2 0.395</td><td class="verdict">❌ no (just)</td></tr>
+      <tr><td>H6</td><td>Trajectory targets beat same-state targets</td><td>kd vs kd_state, 8 passes</td><td class="num">0.890 [0.872, 0.907]</td><td class="verdict">✅ yes</td></tr>
+      <tr><td>H7</td><td>Speed-up ≥ 2.8× at 8 vs 32 passes</td><td>median latency</td><td class="num">3.44×</td><td class="verdict">✅ yes</td></tr>
+      <tr><td>H8</td><td>Distillation does more than sharpen</td><td>KD 8 vs teacher 8 at temperature 0.8</td><td class="num">1.098 [1.074, 1.122]</td><td class="verdict">❌ no</td></tr>
+    </table></div>
+    <p>Six of eight supported. The two failures are the most informative ones: the student's variety drops, and a free
+      temperature change does better.</p>
+  </div>
+</section>
+
+<section id="map">
+  <h2>Decision map: how each result led to the next step</h2>
+  <div class="card tw">
+    <table>
+      <tr><th>#</th><th>Question we asked</th><th>What the result said</th><th>So we decided…</th></tr>
+      <tr><td>1</td><td>Do we run the same teacher as before?</td><td>Yes: 200/200 stories identical to Project 6</td><td>Set up tools</td></tr>
+      <tr><td>2</td><td>Same library versions?</td><td>Yes, as Projects 1–6</td><td>Define what "fewer steps" means</td></tr>
+      <tr><td>3</td><td>What exactly is compared?</td><td>Passes of the model; 32 → 8 is the main target; a CE-only control</td><td>Choose the student</td></tr>
+      <tr><td>4</td><td>Smaller or same-size student?</td><td>Same size, a copy of the teacher; 4-layer version as an extra</td><td>Record the teacher</td></tr>
+      <tr><td>5</td><td>What does the teacher do per pass?</td><td>6,300 trajectories, ~7 tokens per pass, 5 MB</td><td>Cut them into training pairs</td></tr>
+      <tr><td>6</td><td>What does one student pass learn?</td><td>state → span (teacher tokens) + rest (teacher probabilities)</td><td>Write the loss</td></tr>
+      <tr><td>7</td><td>How is "like the teacher" measured?</td><td>KL(teacher ‖ student), T, λ; same-state targets give ~no signal</td><td>Train</td></tr>
+      <tr><td>8</td><td>Does training help?</td><td>lr 1e-4 hurt → 3e-5; KD learns the span, loses some real-text fit</td><td>Generate</td></tr>
+      <tr><td>9</td><td>Which student is best?</td><td>λ = 1 (kd_l100), dev perplexity 49.0 at 8 passes</td><td>Prove the code</td></tr>
+      <tr><td>10</td><td>Is the code right?</td><td>27 tests pass</td><td>Fix the baselines</td></tr>
+      <tr><td>11</td><td>What do we compare against?</td><td>teacher 32/16/8/4, CE-only, temperature 0.8, 4-layer</td><td>Run the test set once</td></tr>
+      <tr><td>12</td><td>Is the student better?</td><td>Yes on perplexity, no on variety; temperature 0.8 wins</td><td>Time it</td></tr>
+      <tr><td>13</td><td>Is it faster?</td><td>3.44× at 8 passes; same memory</td><td>Vary one thing at a time</td></tr>
+      <tr><td>14</td><td>What matters?</td><td>λ high, T = 2, trajectory targets; 4 layers too few</td><td>Read the stories</td></tr>
+      <tr><td>15</td><td>How do stories fail?</td><td>Better endings and consistency, same coherence (AI labels)</td><td>Write it up</td></tr>
+      <tr><td>16</td><td>Can someone reproduce it?</td><td>README, INSTRUCTIONS, seeds, 27 tests</td><td>Project 7 is finished</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== PHASES ===================== -->
+<div class="note" style="margin-top:28px">All commands are run from the <code>project7</code> folder with its
+  <code>.venv</code> active (Windows). Project 7 sits next to Projects 1–6:
+<pre style="margin:8px 0 0"><code>Projrcts List/
+├── project1/    tokenizer, data splits          ← read only
+├── project3/    checkpoints/  mdlm/             ← read only (the teacher)
+├── project4/    bench/                          ← read only (scorer, prompts, measures)
+├── project5/    adaptive/  prompts/             ← read only
+├── project6/    pardec/                         ← read only (the decoder)
+└── project7/    distill/  configs/  scripts/  tests/  results/  checkpoints/</code></pre></div>
+
+<div class="phase" id="p1">
+  <div class="phase-head"><div class="phase-num">1</div><div><h3>Reuse the existing diffusion teacher</h3>
+    <div class="sub">Frozen: no gradients, no dropout</div></div></div>
+  <div class="part"><h4>What and why</h4>
+    <p>Load Project 3's model, freeze it, and check that Project 7's code gets the same stories as Project 6, so any
+      later difference comes from the student, not from the plumbing.</p>
+<pre><code>python -m distill.run --split dev --names "teacher@full-random-K16+noadj+stop"
+python scripts/check_reproduce.py</code></pre></div>
+  <div class="part"><h4>Result</h4><ul><li><b>200 of 200</b> validation stories identical to Project 6.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Same teacher, same decoder: set up the environment.</p></div>
+</div>
+
+<div class="phase" id="p2">
+  <div class="phase-head"><div class="phase-num">2</div><div><h3>Environment and dependencies</h3>
+    <div class="sub">The versions of Projects 1–6</div></div></div>
+  <div class="part"><h4>Result</h4><ul><li>Python 3.12.10, PyTorch 2.14.1 (CPU), tokenizers, transformers (scorer only),
+    numpy, pandas, matplotlib, PyYAML, pytest. <code>requirements.lock.txt</code> pins everything.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Define precisely what "fewer steps" means.</p></div>
+</div>
+
+<div class="phase" id="p3">
+  <div class="phase-head"><div class="phase-num">3</div><div><h3>Define the distillation target</h3>
+    <div class="sub">Steps = forward passes; two effects kept apart</div></div></div>
+  <div class="part"><h4>What and why</h4>
+    <p>(1) cutting passes with no retraining = teacher 32 → teacher 8; (2) what training adds = student 8 vs teacher 8;
+      (3) what the <i>teacher</i> adds = KD student 8 vs CE-only student 8. Main target: <b>32 → 8</b>, with 4 and 16 too.
+      Same prompts, tokenizer, decoder, sampling (top-k 20) and hardware for every system. The eight predictions
+      (H1–H8) and the selection rule were written now, before training.</p></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Choose the student.</p></div>
+</div>
+
+<div class="phase" id="p4">
+  <div class="phase-head"><div class="phase-num">4</div><div><h3>Choose the student architecture</h3>
+    <div class="sub">An exact copy of the teacher</div></div></div>
+  <div class="part"><h4>What and why</h4>
+    <p>Same architecture and tokenizer, initialised from the teacher's weights: pure <b>step</b> distillation, no
+      compression. One optional smaller student keeps layers 0, 2, 3, 5 of 6 (10.3 M parameters instead of 13.9 M).</p></div>
+  <div class="part"><h4>Result</h4><ul><li>Output shape (batch, 256, 8,193); output layer tied to the embedding; tests check it.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Record what the teacher does.</p></div>
+</div>
+
+<div class="phase" id="p5">
+  <div class="phase-head"><div class="phase-num">5</div><div><h3>Teacher denoising trajectories</h3>
+    <div class="sub">Two numbers per position: the token and the pass</div></div></div>
+  <div class="part"><h4>What and why</h4>
+    <p>6,300 prompts from the <b>training</b> split (never the test prompts), 4 groups like the test set; 300 kept apart
+      for validation. The teacher writes each with 32 passes. Teacher <i>probabilities</i> are not stored (that would be
+      ~50 GB); they are recomputed from the state during training, which is exact because the teacher is frozen.</p>
+<pre><code>python -m distill.prompts
+python -m distill.trajectories      # ~30 min</code></pre></div>
+  <div class="part"><h4>Result</h4><ul><li>1,775 s (0.28 s per story); ~7.1 tokens fixed per pass; 77% of stories end
+    inside the window; <b>5 MB</b> in total. See <a href="#b-traj">Idea 4</a>.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Turn trajectories into training examples.</p></div>
+</div>
+
+<div class="phase" id="p6">
+  <div class="phase-head"><div class="phase-num">6</div><div><h3>Teacher target pairs</h3>
+    <div class="sub">state → span + rest</div></div></div>
+  <div class="part"><h4>What and why</h4>
+<pre><code>a = 32·j/S,  b = 32·(j+1)/S        S ∈ {4, 8, 16} drawn per example: one student for all budgets
+input   x(a) = teacher's state after pass a
+span    = positions fixed in passes a+1 … b      target: the teacher's token
+rest    = positions still blank after pass b     target: the teacher's probabilities at x(b)</code></pre>
+    <p>Each update: 8 such <b>trajectory states</b> + 8 <b>real states</b> (a real training window with the same share
+      of blanks). One seeded random generator, so every run sees exactly the same examples.</p></div>
+  <div class="part"><h4>Result</h4><ul><li>Tests: span and rest split the blanks exactly; the prompt is never masked;
+    the number of blanks matches Project 6's decoder quota.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Write the loss.</p></div>
+</div>
+
+<div class="phase" id="p7">
+  <div class="phase-head"><div class="phase-num">7</div><div><h3>Distillation loss</h3>
+    <div class="sub">KL(teacher ‖ student), temperature, mixing with real text</div></div></div>
+  <div class="part"><h4>What and why</h4><p>See <a href="#b-loss">Idea 5</a>. <code>[MASK]</code> and <code>&lt;PAD&gt;</code>
+    are removed from both distributions (never drawn); the loss is averaged over blanks only. The guide's beginner
+    target (same state) became an ablation, <code>kd_state</code>.</p></div>
+  <div class="part"><h4>Result</h4><ul><li>Tests: KL = 0 for identical inputs, the right direction, scales with T²;
+    a 60-update smoke run stayed finite and changed only the student.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Train.</p></div>
+</div>
+
+<div class="phase" id="p8">
+  <div class="phase-head"><div class="phase-num">8</div><div><h3>Training loop</h3>
+    <div class="sub">9 runs × 1,500 updates, same examples, only the loss changes</div></div></div>
+  <div class="part"><h4>What and why</h4>
+<pre><code>AdamW, lr 3e-5 (warm-up 100 → cosine → 3e-6), weight decay 0.1, clip 1.0, dropout 0.1
+runs: ce (λ=0) · kd (λ=.5, T=2) · λ .25/.75/1 · T 1/4 · same-state targets · 4 layers
+bash scripts/train_all.sh       # ~3.3 h on the CPU</code></pre></div>
+  <div class="part"><h4>Result</h4><ul>
+    <li><b>Pilot:</b> lr 1e-4 made held-out loss worse even without the teacher → 3e-5 for all runs (pilot kept).</li>
+    <li>KD runs: span CE 2.43 → 2.38–2.41 (they learn the teacher's next moves); real-text CE 3.57 → up to 3.69 at
+      λ = 1. CE-only: flat. 4 layers: clearly worse (3.72). See <a href="#b-curves">Idea 8</a>.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Loss numbers are not stories: generate.</p></div>
+</div>
+
+<div class="phase" id="p9">
+  <div class="phase-head"><div class="phase-num">9</div><div><h3>Low-step student sampling</h3>
+    <div class="sub">Exactly the teacher's decoder</div></div></div>
+  <div class="part"><h4>What and why</h4><p>Project 6's decoder accepts any model, so students are decoded with the
+    same rules (random order, no-adjacent, early stop, top-k 20). All 9 students × 4/8/16 passes on 200 validation prompts.</p></div>
+  <div class="part"><h4>Result</h4><ul><li>Dev perplexity at 8 passes: teacher 60.9, CE-only 59.2, KD runs 49.0–56.9,
+    4-layer 65.7; teacher at temperature 0.8: 43.9. All pass the rule; the best, <b>kd_l100 (λ = 1)</b>, goes to test.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Make sure the code is right before trusting this.</p></div>
+</div>
+
+<div class="phase" id="p10">
+  <div class="phase-head"><div class="phase-num">10</div><div><h3>Functional correctness</h3>
+    <div class="sub">27 tests</div></div></div>
+  <div class="part"><h4>Result</h4><ul><li>No causal mask; prompt never changed; blanks fall every pass; 4/8/16 passes
+    always finish; same seed → same story; KL direction and T²; teacher frozen while the student changes. <b>27 passed.</b></li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Fix the comparison set.</p></div>
+</div>
+
+<div class="phase" id="p11">
+  <div class="phase-head"><div class="phase-num">11</div><div><h3>Comparison baselines</h3>
+    <div class="sub">Each baseline answers one question</div></div></div>
+  <div class="part"><h4>What and why</h4><p>Teacher at 32/16/8/4 (cost of cutting), CE-only student (extra training),
+    teacher at temperature 0.8 (free sharpening), confidence order (the guide's suggestion, which failed in Projects 3–6),
+    4-layer student (plus compression), real stories (ceiling). 16 systems in total.</p></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Run the test set, once.</p></div>
+</div>
+
+<div class="phase" id="p12">
+  <div class="phase-head"><div class="phase-num">12</div><div><h3>Generation quality</h3>
+    <div class="sub">1,200 stories per system, paired tests</div></div></div>
+  <div class="part"><h4>Result</h4><ul>
+    <li>KD student vs teacher at 8 passes: <b>0.806</b> [0.788, 0.824]; vs teacher at 16: 1.065 (H4 ✅); at 16 passes
+      vs teacher at 32: 0.926 [0.901, 0.950].</li>
+    <li>Distinct-2 0.04–0.07 lower; repetitive stories up slightly (2.8% vs 0.5% at 8 passes).</li>
+    <li>vs temperature 0.8: <b>1.098</b> [1.074, 1.122] and less variety (H8 ❌). See <a href="#hyp">Predictions</a>.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Better per pass, but is it faster in seconds?</p></div>
+</div>
+
+<div class="phase" id="p13">
+  <div class="phase-head"><div class="phase-num">13</div><div><h3>Latency, throughput, memory</h3>
+    <div class="sub">Quiet CPU, 40 stories per system</div></div></div>
+  <div class="part"><h4>Result</h4><ul>
+    <li>Median per story: teacher 32 passes 363 ms, student 8 passes 106 ms (<b>3.44×</b>), 4 passes 61 ms (5.9×).</li>
+    <li>Stories per second (batch 1 / 8 / 32): teacher 32 passes 2.8 / 3.7 / 3.3; student 8 passes 9.6 / 11.8 / 11.0.</li>
+    <li>Weights 65 MB for teacher and student (51 MB for 4 layers); ~340 MB per process at batch 1.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Which choices made the difference?</p></div>
+</div>
+
+<div class="phase" id="p14">
+  <div class="phase-head"><div class="phase-num">14</div><div><h3>Ablations</h3>
+    <div class="sub">One change at a time, on validation</div></div></div>
+  <div class="part">
+    <div class="demo">
+      <div class="demo-title">Dev perplexity at 8 passes (200 stories each)</div>
+      <div class="controls" style="margin-top:0" id="abMode"></div>
+      <div class="mini" id="abBars"></div>
+      <p class="demo-note">Real. Teacher: 60.9. Point at a bar for Distinct-2.</p>
+    </div>
+    <ul><li>More teacher weight → lower perplexity and less variety; T = 2 best; trajectory targets beat same-state
+      targets; 4 layers lose more than distillation gains.</li>
+      <li>Reconstruction of real hidden words (8-pass masking): teacher 3.53, CE-only 3.53, KD 3.55, kd_l100 <b>3.64</b>:
+        the best story-writer is the <i>worst</i> at predicting real text.</li>
+      <li>Short prompts suffer most from fewer passes (teacher ×1.58) and gain most from distillation (×1.25).</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Read what the numbers mean in actual stories.</p></div>
+</div>
+
+<div class="phase" id="p15">
+  <div class="phase-head"><div class="phase-num">15</div><div><h3>Error analysis</h3>
+    <div class="sub">80 blind stories, AI labels (not human)</div></div></div>
+  <div class="part"><h4>Result</h4><ul><li>Rubric (1–5): teacher 32 passes 2.33, teacher 8 passes 1.90, CE-only 1.78,
+    KD student 1.97. Fewer premature endings (1 vs 6 of 20) and entity changes (12 vs 14), same coherence. On the same
+    prompt the student is still worse than the 32-pass teacher 14 times of 20. See <a href="#b-stories">Idea 11</a>.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Package it so anyone can rerun it.</p></div>
+</div>
+
+<div class="phase" id="p16">
+  <div class="phase-head"><div class="phase-num">16</div><div><h3>Repository and reproducibility</h3>
+    <div class="sub">One command per phase, fixed seeds</div></div></div>
+  <div class="part"><h4>Result</h4><ul><li><code>README.md</code>, <code>INSTRUCTIONS.md</code> (all 16 phases),
+    configs written before training, every story with its scores, figures, 27 tests. Seeds: prompts 7070, trajectories
+    7000 + batch, training 7007, generation 6000 + 100·seed + batch. The full pipeline takes ~7 h on a CPU.</li></ul></div>
+  <div class="decide"><h4>How we decided the next step</h4><p>Project 7 is finished.</p></div>
+</div>
+
+<section id="lessons">
+  <h2>Lessons learned (useful for any ML project)</h2>
+  <div class="card"><ul>
+    <li><b>Always build the boring control.</b> Without the CE-only student we could not tell "the teacher helped" from
+      "more training helped". Without the temperature-0.8 teacher we would have reported distillation as a clear win.</li>
+    <li><b>Ask what else could explain the gain.</b> Lower perplexity can come from better stories or from safer, more
+      predictable ones. Look at a variety measure next to every fluency measure.</li>
+    <li><b>Think before you train.</b> Working out on paper that same-state targets give a teacher-copy no signal saved a
+      wasted design, and the ablation confirmed it.</li>
+    <li><b>Check the first run before launching nine.</b> The pilot showed lr 1e-4 hurt; nine runs at that rate would
+      have wasted four hours.</li>
+    <li><b>Loss is not quality.</b> The student that predicts real text worst writes the stories the scorer likes best.</li>
+    <li><b>Thresholds depend on how you measure.</b> Distinct-2 over 100 stories is lower than over 50, so a rule set on
+      validation can fail on test without anything changing.</li>
+    <li><b>Write the predictions first.</b> Two of eight were wrong, and they are the most interesting results.</li>
+  </ul></div>
+</section>
+
+<section id="glossary">
+  <h2>Glossary</h2>
+  <div class="card"><dl class="gloss">
+    <div class="grp">The models</div>
+    <dt>Token</dt><dd>a word or piece of a word; our tokenizer has 8,192.</dd>
+    <dt>Masked diffusion model (MDLM)</dt><dd>a model trained to guess hidden tokens using words on both sides; writes by filling blanks over several passes.</dd>
+    <dt>Pass (NFE)</dt><dd>one call of the model; NFE = number of function evaluations.</dd>
+    <dt>Teacher / student</dt><dd>the slow, frozen model / the model trained to imitate it with fewer passes.</dd>
+    <dt>Frozen</dt><dd>weights never change.</dd>
+    <dt>Fine-tuning</dt><dd>continuing to train an already-trained model, usually with a small learning rate.</dd>
+    <div class="grp">Distillation</div>
+    <dt>Knowledge distillation (KD)</dt><dd>training a student on a teacher's outputs.</dd>
+    <dt>Step distillation</dt><dd>teaching the student to do in one pass what the teacher does in several.</dd>
+    <dt>Trajectory</dt><dd>the sequence of states the teacher goes through while writing; stored as the pass at which each token was fixed.</dd>
+    <dt>State, span, rest</dt><dd>what the student sees / what one student pass must fix / what is still blank after it.</dd>
+    <dt>Soft targets</dt><dd>the teacher's full probability list instead of a single right answer.</dd>
+    <dt>KL divergence</dt><dd>how far one probability list is from another; 0 when identical.</dd>
+    <dt>Temperature T</dt><dd>divide scores by T before turning them into probabilities: T &gt; 1 flattens, T &lt; 1 sharpens.</dd>
+    <dt>λ (lambda_KD)</dt><dd>weight of the teacher loss; 1 − λ goes to real text.</dd>
+    <dt>CE-only student</dt><dd>the same training with λ = 0: the control without a teacher.</dd>
+    <dt>Sharpening</dt><dd>making a model more confident (likely tokens even likelier); lowers perplexity and variety.</dd>
+    <dt>Learning rate</dt><dd>how big each training step is; too big knocks a trained model off its best point.</dd>
+    <div class="grp">Measures and statistics</div>
+    <dt>Scorer perplexity</dt><dd>how surprised an independent model (TinyStories-33M) is by a story; lower = more fluent.</dd>
+    <dt>Distinct-2</dt><dd>share of different word pairs in a group of stories; higher = more varied.</dd>
+    <dt>Repetitive story</dt><dd>a story that repeats long chunks (Project 4's measure).</dd>
+    <dt>Paired bootstrap</dt><dd>resample prompts many times, comparing two systems on the same prompts, to get a 95% interval.</dd>
+    <dt>Validation (dev) / test</dt><dd>prompts for making choices / prompts used once for the final answer.</dd>
+    <dt>Ablation</dt><dd>change one setting, keep everything else, see what moves.</dd>
+    <dt>AI labels</dt><dd>judgements written by an AI assistant, not by people; disclosed wherever used.</dd>
+  </dl></div>
+</section>
+
+</main>
+</div>
+<script>
+const D = {"traj": {"prompt": "Once upon a time, there was a little rabbit named Floppy.", "toks": [" Buzz", " loved", " to", " play", " in", " the", " meadow", ".", " One", " day", ",", " Floppy", " saw", " a", " little", " bunny", " named", " Floppy", " came", " to", " a", " field", ".", " Floppy", " was", " very", " friendly", " and", " called", " Floppy", " for", " a", " long", " time", ".", " But", " then", ",", " Floppy", " saw", " the", " cow", " floating", " in", " the", " field", ".", " He", " panicked", ".", " Floppy", " looked", " scared", " and", " he", " hopped", " over", " to", " Floppy", ".", " Floppy", " was", " very", " sad", " and", " didn", "'t", " know", " what", ".", " Floppy", " said"], "step": [30, 7, 21, 29, 6, 11, 5, 31, 1, 17, 13, 22, 8, 9, 30, 26, 2, 25, 4, 21, 28, 10, 3, 25, 32, 18, 24, 6, 26, 30, 3, 4, 31, 27, 24, 19, 24, 10, 14, 1, 5, 17, 26, 23, 24, 18, 13, 7, 31, 7, 11, 26, 22, 1, 2, 29, 19, 28, 30, 2, 5, 27, 22, 18, 11, 20, 12, 14, 15, 25, 23, 15]}, "stories": {"teacher@full-random-K32+noadj+stop+lazy": {"prompt": "Once there was a little girl named Lila.", "text": " She was only years three years old. One day she was outside and she saw a big tree with her trunk and to reach it. She reached a small tree,, and a very big tree. The girl felt excited and nodded. She climbed up the tree and started to climb it. After she could, she she saw a little bird! She quickly stopped with her in the tree and clapped her head. She gave her a big tree with a branch of the bird's nest, it made Lola smiled and clapped her hands. The girl went back to find the bird and she climbed the tall tree, she felt successful. She was so proud of herself and was so proud and proud that it had helped her nest. It was a very special day that Lila and her mom held it in her hand.", "nfe": 32}, "teacher@full-random-K8+noadj+stop+lazy": {"prompt": "Once there was a little girl named Lila.", "text": " She loved running, and she got a bit. She went outside to look for dinner. One day, Lila saw something to explore. She was so excited, she ran around and saw a house was inside. She and felt a hole in the corner. Lila ran up the door and pulled out. It was a voice in her room. She said \"Look Lila, what I are going to the house now!\" and saw the noise to open the door. She said, \"Wow. Have a while, Mia, it was now, and she hugged her mum. Even though she got tired.", "nfe": 8}, "ce@full-random-K8+noadj+stop+lazy": {"prompt": "Once there was a little girl named Lila.", "text": " She was three years old. Every day, Lila would went outside to look for dinner. One day, she was out a snack. She was so excited, she ran around and saw a box lying against the grass and heard a knock in the corner. Lila ran to the door, and saw that there was a voice in her room. Ben said hello to Lila, that's funny!\" So, Lila was curious and wondered what did to open the kitchen. She said, \"Maybe it found a snack, Mia thought it was a moment and held Lila's hand. So, she ate her snack and she wanted her snack. After to few minutes, but eventually she knew she was ready to go play in the kitchen. And as she smiled and ran off to the kitchen again.", "nfe": 8}, "kd_l100@full-random-K8+noadj+stop+lazy": {"prompt": "Once there was a little girl named Lila.", "text": " She was three years old but she was very impatient. She wanted to try it out of top. Next, she decided to explore the wall in her room, she looked around and saw a top was hanging. She and ran quickly picked up the top. Lila ran as she reached the top. The wall was very high, her room was gone. Lila felt so happy. When she saw for the top of top and reached the top to reach the top. She looked for the top. After a while, Mia knew it was now gone. She finished her job. She never never got tired.", "nfe": 8}, "teacher@full-random-K8+noadj+stop+lazy@topk20t0.8": {"prompt": "Once there was a little girl named Lila.", "text": " She was three years old and only three years old. She loved to go for adventures. One day, she went out to explore. She grabbed her shoes, she ran around and saw many things and things. She and saw a rainbow on the ground. Lila smiled as she reached the top. Inside there was a rainbow on her shoes and shoes. She felt so happy. When she arrived at the top, Lila and saw the sun sparkled on the slide. She said, \"Wow. Have a swing, Mia, it was now, and she hugged her mum. She never her way home.", "nfe": 8}}, "summary": {"ce@full-random-K16+noadj+stop+lazy": {"nfe": 15.999166666666667, "ppl": 44.0010421025801, "ci": [42.544904735110144, 45.46721230031168], "d2": 0.42151229988988054, "rep": 0.0075, "eos": 0.7766666666666666, "lat": null}, "ce@full-random-K4+noadj+stop+lazy": {"nfe": 4.0, "ppl": 105.00416907709027, "ci": [101.5643105666752, 108.36363372637966], "d2": 0.4385880647717064, "rep": 0.0, "eos": 0.72, "lat": null}, "ce@full-random-K8+noadj+stop+lazy": {"nfe": 8.0, "ppl": 57.432556744641786, "ci": [55.56003457683921, 59.30681750168285], "d2": 0.4259101524592384, "rep": 0.0025, "eos": 0.7641666666666667, "lat": 0.10304655000800267}, "kd@full-random-K8+noadj+stop+lazy": {"nfe": 8.0, "ppl": 50.140573622288514, "ci": [48.53158407781519, 51.737377910907895], "d2": 0.39134615616582596, "rep": 0.014166666666666666, "eos": 0.785, "lat": null}, "kd_l100@full-conf-K8+stop+lazy": {"nfe": 7.895, "ppl": 2123.777844310291, "ci": [2039.9621572253845, 2209.853597943366], "d2": 0.34873076760078425, "rep": 0.03916666666666667, "eos": 0.625, "lat": null}, "kd_l100@full-random-K16+noadj+stop+lazy": {"nfe": 15.995, "ppl": 36.49566722553313, "ci": [35.36835014695004, 37.624922825326166], "d2": 0.37047773878705814, "rep": 0.050833333333333335, "eos": 0.7991666666666667, "lat": null}, "kd_l100@full-random-K4+noadj+stop+lazy": {"nfe": 4.0, "ppl": 87.37197361431664, "ci": [84.35718922516897, 90.37354460416202], "d2": 0.3950010916991156, "rep": 0.0075, "eos": 0.7533333333333333, "lat": 0.06121325001004152}, "kd_l100@full-random-K8+noadj+stop+lazy": {"nfe": 8.0, "ppl": 48.30164681445353, "ci": [46.73928616652129, 49.85769349234974], "d2": 0.38262849689583495, "rep": 0.0275, "eos": 0.8033333333333333, "lat": 0.10549390001688153}, "kd_small@full-random-K8+noadj+stop+lazy": {"nfe": 8.0, "ppl": 65.58369878101698, "ci": [63.31055345963739, 67.91181671434154], "d2": 0.38035723469724547, "rep": 0.015, "eos": 0.7683333333333333, "lat": 0.0827323000121396}, "kd_state@full-random-K8+noadj+stop+lazy": {"nfe": 8.0, "ppl": 56.33514788701145, "ci": [54.406326426289574, 58.231800598895624], "d2": 0.4191394962654411, "rep": 0.005833333333333334, "eos": 0.7608333333333334, "lat": null}, "teacher@full-conf-K8+stop+lazy": {"nfe": 7.401666666666666, "ppl": 3350.7129766457365, "ci": [3210.930210269522, 3495.6724584186722], "d2": 0.4113600850739041, "rep": 0.0, "eos": 0.565, "lat": null}, "teacher@full-random-K16+noadj+stop+lazy": {"nfe": 15.995, "ppl": 45.34717300586527, "ci": [43.73860956888416, 46.959217764344565], "d2": 0.4373475480583949, "rep": 0.01, "eos": 0.7825, "lat": 0.1897140500077512}, "teacher@full-random-K32+noadj+stop+lazy": {"nfe": 31.970833333333335, "ppl": 39.427295839949046, "ci": [38.16773540244458, 40.66627488372915], "d2": 0.4300751248046928, "rep": 0.0175, "eos": 0.7858333333333334, "lat": 0.3628366999910213}, "teacher@full-random-K4+noadj+stop+lazy": {"nfe": 4.0, "ppl": 109.14428156199851, "ci": [105.54603562179813, 112.75443855792167], "d2": 0.45311179844459387, "rep": 0.0016666666666666668, "eos": 0.6883333333333334, "lat": 0.06281820000731386}, "teacher@full-random-K8+noadj+stop+lazy": {"nfe": 8.0, "ppl": 59.92235676443184, "ci": [57.86441025725318, 61.968537414170605], "d2": 0.44082859364707955, "rep": 0.005, "eos": 0.7458333333333333, "lat": 0.10440260000177659}, "teacher@full-random-K8+noadj+stop+lazy@topk20t0.8": {"nfe": 8.0, "ppl": 43.97996614163695, "ci": [42.549243714880895, 45.41860265990456], "d2": 0.4020919160012013, "rep": 0.02666666666666667, "eos": 0.7641666666666667, "lat": null}}, "real": 4.52364109843142, "dev": {"ce@full-conf-K8+stop+lazy": {"ppl": 3799.2754972885177, "d2": 0.4551120155263134, "rep": 0.0}, "ce@full-random-K16+noadj+stop+lazy": {"ppl": 45.17185698551739, "d2": 0.506000586128319, "rep": 0.005}, "ce@full-random-K4+noadj+stop+lazy": {"ppl": 107.99868724003267, "d2": 0.5278921485019046, "rep": 0.0}, "ce@full-random-K8+noadj+stop+lazy": {"ppl": 59.20621190693489, "d2": 0.5157195264431179, "rep": 0.0}, "kd@full-conf-K8+stop+lazy": {"ppl": 3136.0082278122172, "d2": 0.41421698510123595, "rep": 0.005}, "kd@full-random-K16+noadj+stop+lazy": {"ppl": 38.9609757077035, "d2": 0.46663584434470357, "rep": 0.03}, "kd@full-random-K4+noadj+stop+lazy": {"ppl": 91.61491382263173, "d2": 0.4956447610496518, "rep": 0.0}, "kd@full-random-K8+noadj+stop+lazy": {"ppl": 50.815205605861436, "d2": 0.4799031222983283, "rep": 0.015}, "kd_T1@full-random-K16+noadj+stop+lazy": {"ppl": 41.76921259126929, "d2": 0.4813270765778133, "rep": 0.035}, "kd_T1@full-random-K4+noadj+stop+lazy": {"ppl": 100.67564508706758, "d2": 0.5183020961055643, "rep": 0.0}, "kd_T1@full-random-K8+noadj+stop+lazy": {"ppl": 54.21126129311776, "d2": 0.49704119959336135, "rep": 0.0}, "kd_T4@full-random-K16+noadj+stop+lazy": {"ppl": 41.90217698906694, "d2": 0.4703949856588275, "rep": 0.03}, "kd_T4@full-random-K4+noadj+stop+lazy": {"ppl": 95.71632767767204, "d2": 0.5064012359416058, "rep": 0.005}, "kd_T4@full-random-K8+noadj+stop+lazy": {"ppl": 51.50607882983157, "d2": 0.48813690481731487, "rep": 0.015}, "kd_l100@full-random-K16+noadj+stop+lazy": {"ppl": 37.62997241995537, "d2": 0.4604998250279184, "rep": 0.03}, "kd_l100@full-random-K4+noadj+stop+lazy": {"ppl": 88.8894265385945, "d2": 0.4958171234853077, "rep": 0.0}, "kd_l100@full-random-K8+noadj+stop+lazy": {"ppl": 49.030632513425374, "d2": 0.4669522121090276, "rep": 0.015}, "kd_l25@full-random-K16+noadj+stop+lazy": {"ppl": 40.2545561689674, "d2": 0.47221852346626914, "rep": 0.045}, "kd_l25@full-random-K4+noadj+stop+lazy": {"ppl": 94.30922961389682, "d2": 0.5057799526124814, "rep": 0.0}, "kd_l25@full-random-K8+noadj+stop+lazy": {"ppl": 52.12160362027402, "d2": 0.4881459569650103, "rep": 0.02}, "kd_l75@full-random-K16+noadj+stop+lazy": {"ppl": 37.552634815144614, "d2": 0.45657343787971416, "rep": 0.04}, "kd_l75@full-random-K4+noadj+stop+lazy": {"ppl": 90.8255556724476, "d2": 0.49064291856454045, "rep": 0.0}, "kd_l75@full-random-K8+noadj+stop+lazy": {"ppl": 50.91165050127152, "d2": 0.4712477208013677, "rep": 0.01}, "kd_small@full-random-K16+noadj+stop+lazy": {"ppl": 53.30112376961705, "d2": 0.453707459212129, "rep": 0.045}, "kd_small@full-random-K4+noadj+stop+lazy": {"ppl": 114.40097713743269, "d2": 0.48399680271189527, "rep": 0.005}, "kd_small@full-random-K8+noadj+stop+lazy": {"ppl": 65.68463360359584, "d2": 0.4659051478256221, "rep": 0.02}, "kd_state@full-random-K16+noadj+stop+lazy": {"ppl": 42.79566019515517, "d2": 0.49846111984018737, "rep": 0.01}, "kd_state@full-random-K4+noadj+stop+lazy": {"ppl": 103.6157995632127, "d2": 0.5287570687295632, "rep": 0.0}, "kd_state@full-random-K8+noadj+stop+lazy": {"ppl": 56.924372961490405, "d2": 0.5115484584979287, "rep": 0.015}, "teacher@full-conf-K8+stop+lazy": {"ppl": 3453.3033027180027, "d2": 0.4905243782862738, "rep": 0.0}, "teacher@full-random-K16+noadj+stop+lazy": {"ppl": 48.25996299690102, "d2": 0.5174767607086008, "rep": 0.005}, "teacher@full-random-K16+noadj+stop": {"ppl": 47.763595921563024, "d2": 0.5262620712868493, "rep": 0.005}, "teacher@full-random-K32+noadj+stop+lazy": {"ppl": 40.21476667725043, "d2": 0.5168842659554794, "rep": 0.025}, "teacher@full-random-K4+noadj+stop+lazy": {"ppl": 113.32761603572249, "d2": 0.5470136668695993, "rep": 0.0}, "teacher@full-random-K4+noadj+stop+lazy@topk20t0.8": {"ppl": 83.926404270317, "d2": 0.5036553137486923, "rep": 0.01}, "teacher@full-random-K8+noadj+stop+lazy": {"ppl": 60.90774209303885, "d2": 0.5354367566676621, "rep": 0.005}, "teacher@full-random-K8+noadj+stop+lazy@topk20t0.8": {"ppl": 43.90042257301463, "d2": 0.4905344868898575, "rep": 0.015}}, "timing": {"teacher@full-random-K32+noadj+stop+lazy": {"median_s": 0.3628366999910213, "p95_s": 0.3738250349968439, "nfe_mean": 31.9, "ms_per_pass": 11.23725266466253}, "teacher@full-random-K16+noadj+stop+lazy": {"median_s": 0.1897140500077512, "p95_s": 0.20118961501575539, "nfe_mean": 16.0, "ms_per_pass": 11.862746875067387}, "teacher@full-random-K8+noadj+stop+lazy": {"median_s": 0.10440260000177659, "p95_s": 0.11224265499331522, "nfe_mean": 8.0, "ms_per_pass": 13.034396562579786}, "teacher@full-random-K4+noadj+stop+lazy": {"median_s": 0.06281820000731386, "p95_s": 0.06816308501875028, "nfe_mean": 4.0, "ms_per_pass": 15.557155624992447}, "ce@full-random-K8+noadj+stop+lazy": {"median_s": 0.10304655000800267, "p95_s": 0.1152896800194867, "nfe_mean": 8.0, "ms_per_pass": 13.032885625034396}, "kd_l100@full-random-K8+noadj+stop+lazy": {"median_s": 0.10549390001688153, "p95_s": 0.11314507997303735, "nfe_mean": 8.0, "ms_per_pass": 13.144304374873172}, "kd_l100@full-random-K4+noadj+stop+lazy": {"median_s": 0.06121325001004152, "p95_s": 0.0669792649714509, "nfe_mean": 4.0, "ms_per_pass": 15.438722500039148}, "kd_small@full-random-K8+noadj+stop+lazy": {"median_s": 0.0827323000121396, "p95_s": 0.09071346996352075, "nfe_mean": 8.0, "ms_per_pass": 10.306028437116765}}, "throughput": {"teacher@full-random-K32+noadj+stop+lazy#B1": {"name": "teacher@full-random-K32+noadj+stop+lazy", "batch": 1, "outputs_per_s": 2.8137003537055367}, "teacher@full-random-K32+noadj+stop+lazy#B8": {"name": "teacher@full-random-K32+noadj+stop+lazy", "batch": 8, "outputs_per_s": 3.7494470444344956}, "teacher@full-random-K32+noadj+stop+lazy#B32": {"name": "teacher@full-random-K32+noadj+stop+lazy", "batch": 32, "outputs_per_s": 3.341769246878075}, "kd_l100@full-random-K8+noadj+stop+lazy#B1": {"name": "kd_l100@full-random-K8+noadj+stop+lazy", "batch": 1, "outputs_per_s": 9.610850939033005}, "kd_l100@full-random-K8+noadj+stop+lazy#B8": {"name": "kd_l100@full-random-K8+noadj+stop+lazy", "batch": 8, "outputs_per_s": 11.784346748979203}, "kd_l100@full-random-K8+noadj+stop+lazy#B32": {"name": "kd_l100@full-random-K8+noadj+stop+lazy", "batch": 32, "outputs_per_s": 11.03780818377311}, "kd_l100@full-random-K4+noadj+stop+lazy#B1": {"name": "kd_l100@full-random-K4+noadj+stop+lazy", "batch": 1, "outputs_per_s": 15.72960030567749}, "kd_l100@full-random-K4+noadj+stop+lazy#B8": {"name": "kd_l100@full-random-K4+noadj+stop+lazy", "batch": 8, "outputs_per_s": 18.340745955905692}, "kd_l100@full-random-K4+noadj+stop+lazy#B32": {"name": "kd_l100@full-random-K4+noadj+stop+lazy", "batch": 32, "outputs_per_s": 17.490689486944614}, "kd_small@full-random-K8+noadj+stop+lazy#B1": {"name": "kd_small@full-random-K8+noadj+stop+lazy", "batch": 1, "outputs_per_s": 11.729516900421535}, "kd_small@full-random-K8+noadj+stop+lazy#B8": {"name": "kd_small@full-random-K8+noadj+stop+lazy", "batch": 8, "outputs_per_s": 14.226488904417833}, "kd_small@full-random-K8+noadj+stop+lazy#B32": {"name": "kd_small@full-random-K8+noadj+stop+lazy", "batch": 32, "outputs_per_s": 13.866642076623666}}, "cmp": [{"a": "teacher@full-random-K8+noadj+stop+lazy", "b": "teacher@full-random-K32+noadj+stop+lazy", "question": "H1: teacher, 8 vs 32 passes (step reduction alone)", "ppl_ratio": 1.5198190869513428, "ppl_ratio_ci95": [1.4820968920845492, 1.557518684585189], "rep_diff_pp": -1.25, "d2_diff_mean": 0.010753468842386718}, {"a": "teacher@full-random-K16+noadj+stop+lazy", "b": "teacher@full-random-K32+noadj+stop+lazy", "question": "teacher, 16 vs 32 passes", "ppl_ratio": 1.1501466697068787, "ppl_ratio_ci95": [1.117175602144392, 1.182369873627185], "rep_diff_pp": -0.7500000000000001, "d2_diff_mean": 0.007272423253702119}, {"a": "teacher@full-random-K4+noadj+stop+lazy", "b": "teacher@full-random-K8+noadj+stop+lazy", "question": "teacher, 4 vs 8 passes", "ppl_ratio": 1.821428385920618, "ppl_ratio_ci95": [1.771157586804262, 1.8724267890545971], "rep_diff_pp": -0.3333333333333333, "d2_diff_mean": 0.012283204797514333}, {"a": "ce@full-random-K8+noadj+stop+lazy", "b": "teacher@full-random-K8+noadj+stop+lazy", "question": "H2: CE-only student vs teacher, 8 passes (extra training alone)", "ppl_ratio": 0.9584495644993068, "ppl_ratio_ci95": [0.939954377791581, 0.9777519821799808], "rep_diff_pp": -0.25, "d2_diff_mean": -0.014918441187841094}, {"a": "kd@full-random-K8+noadj+stop+lazy", "b": "ce@full-random-K8+noadj+stop+lazy", "question": "H3: KD student (pre-registered kd) vs CE-only, 8 passes", "ppl_ratio": 0.8730339804516262, "ppl_ratio_ci95": [0.8543649073207155, 0.8912529280784088], "rep_diff_pp": 1.1666666666666665, "d2_diff_mean": -0.03456399629341243}, {"a": "kd_l100@full-random-K8+noadj+stop+lazy", "b": "ce@full-random-K8+noadj+stop+lazy", "question": "H3: best KD student vs CE-only, 8 passes", "ppl_ratio": 0.8410150888669928, "ppl_ratio_ci95": [0.8216056753918899, 0.860669790843442], "rep_diff_pp": 2.5, "d2_diff_mean": -0.04328165556340346}, {"a": "kd_l100@full-random-K16+noadj+stop+lazy", "b": "ce@full-random-K16+noadj+stop+lazy", "question": "best KD vs CE-only, 16 passes", "ppl_ratio": 0.8294273381173654, "ppl_ratio_ci95": [0.8097719711029198, 0.8488492426020864], "rep_diff_pp": 4.333333333333334, "d2_diff_mean": -0.051034561102822285}, {"a": "kd_l100@full-random-K4+noadj+stop+lazy", "b": "ce@full-random-K4+noadj+stop+lazy", "question": "best KD vs CE-only, 4 passes", "ppl_ratio": 0.8320809962333143, "ppl_ratio_ci95": [0.813245631103156, 0.8516427803764455], "rep_diff_pp": 0.75, "d2_diff_mean": -0.04358697307259085}, {"a": "kd_l100@full-random-K8+noadj+stop+lazy", "b": "teacher@full-random-K8+noadj+stop+lazy", "question": "best KD student vs teacher, 8 passes", "ppl_ratio": 0.8060705456619152, "ppl_ratio_ci95": [0.787900533603158, 0.8244918137248536], "rep_diff_pp": 2.25, "d2_diff_mean": -0.058200096751244546}, {"a": "kd_l100@full-random-K16+noadj+stop+lazy", "b": "teacher@full-random-K16+noadj+stop+lazy", "question": "best KD student vs teacher, 16 passes", "ppl_ratio": 0.8048057862573424, "ppl_ratio_ci95": [0.7862567216198062, 0.8240011190592095], "rep_diff_pp": 4.083333333333333, "d2_diff_mean": -0.06686980927133675}, {"a": "kd_l100@full-random-K4+noadj+stop+lazy", "b": "teacher@full-random-K4+noadj+stop+lazy", "question": "H5: best KD student vs teacher, 4 passes", "ppl_ratio": 0.8005181065275117, "ppl_ratio_ci95": [0.7817674947215361, 0.8200870722416285], "rep_diff_pp": 0.5833333333333333, "d2_diff_mean": -0.05811070674547825}, {"a": "kd_l100@full-random-K8+noadj+stop+lazy", "b": "teacher@full-random-K16+noadj+stop+lazy", "question": "H4: best KD student at 8 vs teacher at 16 passes", "ppl_ratio": 1.0651523262146048, "ppl_ratio_ci95": [1.0340392966713174, 1.0973050956335535], "rep_diff_pp": 1.7500000000000002, "d2_diff_mean": -0.05471905116255996}, {"a": "kd_l100@full-random-K8+noadj+stop+lazy", "b": "teacher@full-random-K32+noadj+stop+lazy", "question": "best KD student at 8 vs teacher at 32 passes", "ppl_ratio": 1.2250814007262625, "ppl_ratio_ci95": [1.19331221650124, 1.2574665353640349], "rep_diff_pp": 0.9999999999999999, "d2_diff_mean": -0.04744662790885784}, {"a": "kd_l100@full-random-K16+noadj+stop+lazy", "b": "teacher@full-random-K32+noadj+stop+lazy", "question": "best KD student at 16 vs teacher at 32 passes", "ppl_ratio": 0.9256446948247085, "ppl_ratio_ci95": [0.9014842204451461, 0.949521379482027], "rep_diff_pp": 3.3333333333333335, "d2_diff_mean": -0.059597386017634625}, {"a": "kd@full-random-K8+noadj+stop+lazy", "b": "kd_state@full-random-K8+noadj+stop+lazy", "question": "H6: trajectory targets vs same-state targets, 8 passes", "ppl_ratio": 0.8900406851305852, "ppl_ratio_ci95": [0.8721186353449211, 0.9074854335616396], "rep_diff_pp": 0.8333333333333331, "d2_diff_mean": -0.027793340099615094}, {"a": "kd_l100@full-random-K8+noadj+stop+lazy", "b": "teacher@full-random-K8+noadj+stop+lazy@topk20t0.8", "question": "H8: best KD student vs sharper teacher (temperature 0.8), 8 passes", "ppl_ratio": 1.0982647567053292, "ppl_ratio_ci95": [1.0743989410276293, 1.1221985537708965], "rep_diff_pp": 0.08333333333333318, "d2_diff_mean": -0.01946341910536632}, {"a": "teacher@full-random-K8+noadj+stop+lazy@topk20t0.8", "b": "teacher@full-random-K8+noadj+stop+lazy", "question": "sharpening alone: teacher at temperature 0.8 vs 1.0, 8 passes", "ppl_ratio": 0.7339492055449691, "ppl_ratio_ci95": [0.7195172314476976, 0.7486721210739572], "rep_diff_pp": 2.166666666666667, "d2_diff_mean": -0.03873667764587823}, {"a": "kd_l100@full-conf-K8+stop+lazy", "b": "kd_l100@full-random-K8+noadj+stop+lazy", "question": "reveal rule (student): confidence vs random + no-adjacent, 8 passes", "ppl_ratio": 43.96905663420949, "ppl_ratio_ci95": [41.5991939519219, 46.45922197031953], "rep_diff_pp": 1.166666666666667, "d2_diff_mean": -0.03389772929505078}, {"a": "teacher@full-conf-K8+stop+lazy", "b": "teacher@full-random-K8+noadj+stop+lazy", "question": "reveal rule (teacher): confidence vs random + no-adjacent, 8 passes", "ppl_ratio": 55.91757663701608, "ppl_ratio_ci95": [53.01479138974797, 58.958012798143585], "rep_diff_pp": -0.5, "d2_diff_mean": -0.029468508573175446}, {"a": "kd_small@full-random-K8+noadj+stop+lazy", "b": "kd@full-random-K8+noadj+stop+lazy", "question": "4-layer vs 6-layer KD student, 8 passes", "ppl_ratio": 1.3079965792785364, "ppl_ratio_ci95": [1.2803406975097145, 1.335614296617242], "rep_diff_pp": 0.08333333333333334, "d2_diff_mean": -0.010988921468580498}, {"a": "kd_small@full-random-K8+noadj+stop+lazy", "b": "teacher@full-random-K8+noadj+stop+lazy", "question": "4-layer KD student vs teacher, 8 passes", "ppl_ratio": 1.094477959851298, "ppl_ratio_ci95": [1.0694630094953768, 1.1203392065289657], "rep_diff_pp": 0.9999999999999999, "d2_diff_mean": -0.06047135894983402}], "errors": {"teacher_K32": {"n": 20, "rubric": {"coherence": 1.75, "relevance": 3.1, "grammar": 1.95, "completeness": 2.75, "consistency": 2.1}, "rubric_overall": 2.33, "repetition": {"count": 6, "rate": 0.3, "ci95": [0.14547527396899385, 0.5189767762289793]}, "contradiction": {"count": 18, "rate": 0.9, "ci95": [0.6989617935882066, 0.9721341060158468]}, "early_wrong_turn": {"count": 4, "rate": 0.2, "ci95": [0.0806563532712, 0.41602172202575993]}, "ungrammatical": {"count": 19, "rate": 0.95, "ci95": [0.7638641064874331, 0.9911187805671268]}, "premature_ending": {"count": 2, "rate": 0.1, "ci95": [0.027865893984153206, 0.30103820641179335]}, "ignored_prompt": {"count": 0, "rate": 0.0, "ci95": [-1.3877787807814457e-17, 0.16113012549493322]}, "entity": {"count": 15, "rate": 0.75, "ci95": [0.5312949900419365, 0.888139947210597]}}, "teacher_K8": {"n": 20, "rubric": {"coherence": 1.25, "relevance": 2.85, "grammar": 1.3, "completeness": 2.25, "consistency": 1.85}, "rubric_overall": 1.8999999999999997, "repetition": {"count": 10, "rate": 0.5, "ci95": [0.2992949144298199, 0.7007050855701801]}, "contradiction": {"count": 19, "rate": 0.95, "ci95": [0.7638641064874331, 0.9911187805671268]}, "early_wrong_turn": {"count": 4, "rate": 0.2, "ci95": [0.0806563532712, 0.41602172202575993]}, "ungrammatical": {"count": 20, "rate": 1.0, "ci95": [0.8388698745050667, 1.0]}, "premature_ending": {"count": 6, "rate": 0.3, "ci95": [0.14547527396899385, 0.5189767762289793]}, "ignored_prompt": {"count": 0, "rate": 0.0, "ci95": [-1.3877787807814457e-17, 0.16113012549493322]}, "entity": {"count": 14, "rate": 0.7, "ci95": [0.4810232237710206, 0.854524726031006]}, "paired_vs_teacher_K32": {"mean_diff": -0.43, "worse": 14, "same": 3, "better": 3}}, "ce_K8": {"n": 20, "rubric": {"coherence": 1.15, "relevance": 2.65, "grammar": 1.2, "completeness": 2.15, "consistency": 1.75}, "rubric_overall": 1.7799999999999998, "repetition": {"count": 12, "rate": 0.6, "ci95": [0.3865779423152061, 0.7811960325858074]}, "contradiction": {"count": 20, "rate": 1.0, "ci95": [0.8388698745050667, 1.0]}, "early_wrong_turn": {"count": 6, "rate": 0.3, "ci95": [0.14547527396899385, 0.5189767762289793]}, "ungrammatical": {"count": 20, "rate": 1.0, "ci95": [0.8388698745050667, 1.0]}, "premature_ending": {"count": 4, "rate": 0.2, "ci95": [0.0806563532712, 0.41602172202575993]}, "ignored_prompt": {"count": 0, "rate": 0.0, "ci95": [-1.3877787807814457e-17, 0.16113012549493322]}, "entity": {"count": 15, "rate": 0.75, "ci95": [0.5312949900419365, 0.888139947210597]}, "paired_vs_teacher_K32": {"mean_diff": -0.55, "worse": 15, "same": 2, "better": 3}}, "kd_l100_K8": {"n": 20, "rubric": {"coherence": 1.2, "relevance": 2.75, "grammar": 1.3, "completeness": 2.5, "consistency": 2.1}, "rubric_overall": 1.97, "repetition": {"count": 11, "rate": 0.55, "ci95": [0.3420820083075997, 0.7418049791429071]}, "contradiction": {"count": 19, "rate": 0.95, "ci95": [0.7638641064874331, 0.9911187805671268]}, "early_wrong_turn": {"count": 7, "rate": 0.35, "ci95": [0.18118954786794464, 0.5671494897805354]}, "ungrammatical": {"count": 20, "rate": 1.0, "ci95": [0.8388698745050667, 1.0]}, "premature_ending": {"count": 1, "rate": 0.05, "ci95": [0.008881219432873136, 0.23613589351256675]}, "ignored_prompt": {"count": 0, "rate": 0.0, "ci95": [-1.3877787807814457e-17, 0.16113012549493322]}, "entity": {"count": 12, "rate": 0.6, "ci95": [0.3865779423152061, 0.7811960325858074]}, "paired_vs_teacher_K32": {"mean_diff": -0.36, "worse": 14, "same": 2, "better": 4}}}, "div": {"teacher_K16": {"all": {"ppl_ratio_vs_teacher_K32": 1.1501466697068787, "ci95": [1.117175602144392, 1.182369873627185]}, "short": {"ppl_ratio_vs_teacher_K32": 1.1976323254057262, "ci95": [1.134821945813241, 1.264820117825394]}, "character": {"ppl_ratio_vs_teacher_K32": 1.1130314761162408, "ci95": [1.0440275316580694, 1.1872793637555181]}, "action": {"ppl_ratio_vs_teacher_K32": 1.1197766835518184, "ci95": [1.075386617989915, 1.1667229238628118]}, "longer": {"ppl_ratio_vs_teacher_K32": 1.1693114457270388, "ci95": [1.0947477824179797, 1.2474923595275402]}}, "teacher_K8": {"all": {"ppl_ratio_vs_teacher_K32": 1.5198190869513428, "ci95": [1.4820968920845492, 1.557518684585189]}, "short": {"ppl_ratio_vs_teacher_K32": 1.5764169876291065, "ci95": [1.5029120486108802, 1.6522295715633162]}, "character": {"ppl_ratio_vs_teacher_K32": 1.4912912458191627, "ci95": [1.4200760272870268, 1.5681736985607189]}, "action": {"ppl_ratio_vs_teacher_K32": 1.5094831006868115, "ci95": [1.447717087563345, 1.5738798012332207]}, "longer": {"ppl_ratio_vs_teacher_K32": 1.4657781899426576, "ci95": [1.3749946955633507, 1.5607109002106516]}}, "ce_K8": {"all": {"ppl_ratio_vs_teacher_K32": 1.4566699420062486, "ci95": [1.4195591650802228, 1.4930180780838287]}, "short": {"ppl_ratio_vs_teacher_K32": 1.4981093825192864, "ci95": [1.426073429941255, 1.572762339090535]}, "character": {"ppl_ratio_vs_teacher_K32": 1.4258377630310946, "ci95": [1.3601376988202467, 1.4965140027965642]}, "action": {"ppl_ratio_vs_teacher_K32": 1.4393400774683227, "ci95": [1.3816847156489882, 1.5013529410837185]}, "longer": {"ppl_ratio_vs_teacher_K32": 1.4180309282009604, "ci95": [1.3236304826157057, 1.5188512855070344]}}, "kd_l100_K8": {"all": {"ppl_ratio_vs_teacher_K32": 1.2250814007262625, "ci95": [1.19331221650124, 1.2574665353640349]}, "short": {"ppl_ratio_vs_teacher_K32": 1.2477970681333441, "ci95": [1.1812970229392163, 1.3152753749347859]}, "character": {"ppl_ratio_vs_teacher_K32": 1.1749430475375582, "ci95": [1.1234171561045871, 1.2282209376074296]}, "action": {"ppl_ratio_vs_teacher_K32": 1.2022410285063363, "ci95": [1.1537908144371865, 1.2522788435538912]}, "longer": {"ppl_ratio_vs_teacher_K32": 1.2885433003321036, "ci95": [1.200750102379974, 1.380423048427765]}}, "teacher_K4": {"all": {"ppl_ratio_vs_teacher_K32": 2.7682416264371317, "ci95": [2.6938974428156697, 2.8449858909451846]}, "short": {"ppl_ratio_vs_teacher_K32": 2.843218802412187, "ci95": [2.703376183955812, 2.992252072076969]}, "character": {"ppl_ratio_vs_teacher_K32": 2.9712845680534414, "ci95": [2.818252318510751, 3.137080055032185]}, "action": {"ppl_ratio_vs_teacher_K32": 2.589484087095899, "ci95": [2.478658620544613, 2.7092274242148577]}, "longer": {"ppl_ratio_vs_teacher_K32": 2.638656119463685, "ci95": [2.4457301844433177, 2.8399964473036134]}}, "ce_K4": {"all": {"ppl_ratio_vs_teacher_K32": 2.663235376408862, "ci95": [2.5917214589036934, 2.735185164689127]}, "short": {"ppl_ratio_vs_teacher_K32": 2.6915744284192735, "ci95": [2.5593473566094613, 2.8275384573072966]}, "character": {"ppl_ratio_vs_teacher_K32": 2.7382841359098347, "ci95": [2.5993574882030037, 2.8844816063751844]}, "action": {"ppl_ratio_vs_teacher_K32": 2.5529106445306926, "ci95": [2.430467345675985, 2.6865851468435356]}, "longer": {"ppl_ratio_vs_teacher_K32": 2.6169650620270457, "ci95": [2.442389880822561, 2.8006698010679543]}}, "kd_l100_K4": {"all": {"ppl_ratio_vs_teacher_K32": 2.216027545206092, "ci95": [2.152152581723207, 2.282584560188605]}, "short": {"ppl_ratio_vs_teacher_K32": 2.1820426703297513, "ci95": [2.070643262269669, 2.295937848486723]}, "character": {"ppl_ratio_vs_teacher_K32": 2.3746831880304144, "ci95": [2.224917358660215, 2.536285371850128]}, "action": {"ppl_ratio_vs_teacher_K32": 2.099871176180476, "ci95": [2.004013373947822, 2.2013786226717063]}, "longer": {"ppl_ratio_vs_teacher_K32": 2.286981547779638, "ci95": [2.116581455130299, 2.4657216558440687]}}}, "recon": {"teacher": {"S8": 3.532032072470275, "uniform": 3.0915574679104876}, "ce": {"S8": 3.5310326222228046, "uniform": 3.0989014517679148}, "kd": {"S8": 3.545297922551733, "uniform": 3.1089158421114944}, "kd_l25": {"S8": 3.535255914045083, "uniform": 3.102278920843337}, "kd_l75": {"S8": 3.5665535131166517, "uniform": 3.1236120403415537}, "kd_l100": {"S8": 3.6442912822021305, "uniform": 3.187427745573249}, "kd_T1": {"S8": 3.5402914045678435, "uniform": 3.104670696690953}, "kd_T4": {"S8": 3.5377498225548294, "uniform": 3.1026746483670657}, "kd_state": {"S8": 3.5332713788680667, "uniform": 3.09887539506473}, "kd_small": {"S8": 3.683020011855481, "uniform": 3.2593343143474343}}, "curves": {"ce": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.3268, 1.3489, 1.3518, 1.3497, 1.3504, 1.3444, 1.3458], "val_span_ce": [2.4265, 2.445, 2.4521, 2.4454, 2.4442, 2.4417, 2.4415], "val_sched_ce": [3.5675, 3.5671, 3.5695, 3.5675, 3.5687, 3.5668, 3.5661], "val_ce": [3.0596, 3.065, 3.0687, 3.0668, 3.0696, 3.0654, 3.0646]}, "kd": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.3268, 1.3362, 1.3422, 1.344, 1.344, 1.3406, 1.3397], "val_span_ce": [2.4265, 2.3937, 2.3993, 2.3932, 2.3918, 2.391, 2.391], "val_sched_ce": [3.5675, 3.5831, 3.5847, 3.5847, 3.586, 3.5856, 3.5839], "val_ce": [3.0596, 3.078, 3.0843, 3.0802, 3.0821, 3.0787, 3.0773]}, "kd_l25": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.3268, 1.3353, 1.3392, 1.3403, 1.3404, 1.3355, 1.3358], "val_span_ce": [2.4265, 2.4106, 2.4153, 2.4084, 2.4074, 2.4057, 2.406], "val_sched_ce": [3.5675, 3.5728, 3.5745, 3.573, 3.5742, 3.5735, 3.5725], "val_ce": [3.0596, 3.0705, 3.075, 3.0704, 3.0736, 3.0698, 3.0686]}, "kd_l75": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.3268, 1.3453, 1.3516, 1.354, 1.354, 1.3516, 1.3495], "val_span_ce": [2.4265, 2.3832, 2.3896, 2.3843, 2.3836, 2.3828, 2.382], "val_sched_ce": [3.5675, 3.6045, 3.6055, 3.6078, 3.6091, 3.6093, 3.6066], "val_ce": [3.0596, 3.0927, 3.1006, 3.0974, 3.0986, 3.0955, 3.0939]}, "kd_l100": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.3268, 1.376, 1.3773, 1.382, 1.379, 1.376, 1.3755], "val_span_ce": [2.4265, 2.3826, 2.3869, 2.3851, 2.3849, 2.3827, 2.3821], "val_sched_ce": [3.5675, 3.6696, 3.6746, 3.6858, 3.6881, 3.6899, 3.6881], "val_ce": [3.0596, 3.1405, 3.1563, 3.1612, 3.1645, 3.1633, 3.162]}, "kd_T1": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.3268, 1.3235, 1.326, 1.3256, 1.3234, 1.3205, 1.32], "val_span_ce": [2.4265, 2.4097, 2.4138, 2.4078, 2.4066, 2.4056, 2.405], "val_sched_ce": [3.5675, 3.5747, 3.5777, 3.578, 3.5794, 3.5795, 3.5782], "val_ce": [3.0596, 3.0699, 3.0769, 3.0732, 3.0766, 3.074, 3.0729]}, "kd_T4": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.3268, 1.3319, 1.3354, 1.3359, 1.335, 1.3317, 1.3313], "val_span_ce": [2.4265, 2.4078, 2.4094, 2.4033, 2.4024, 2.4006, 2.4008], "val_sched_ce": [3.5675, 3.5752, 3.5766, 3.5764, 3.5769, 3.5766, 3.5752], "val_ce": [3.0596, 3.0703, 3.0754, 3.0719, 3.0745, 3.0714, 3.0703]}, "kd_state": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.3268, 1.3369, 1.3359, 1.3359, 1.3361, 1.3335, 1.3331], "val_span_ce": [2.4265, 2.4312, 2.4319, 2.4287, 2.4296, 2.4289, 2.4274], "val_sched_ce": [3.5675, 3.5706, 3.5728, 3.5706, 3.5704, 3.5697, 3.5692], "val_ce": [3.0596, 3.0688, 3.0714, 3.0675, 3.0686, 3.0664, 3.0657]}, "kd_small": {"step": [0.0, 250.0, 500.0, 750.0, 1000.0, 1250.0, 1500.0], "val_traj": [1.6465, 1.488, 1.4712, 1.4635, 1.4568, 1.451, 1.4496], "val_span_ce": [2.8331, 2.5868, 2.5631, 2.5492, 2.5407, 2.5365, 2.5356], "val_sched_ce": [3.8804, 3.7514, 3.7318, 3.7237, 3.7204, 3.7174, 3.7153], "val_ce": [3.4233, 3.276, 3.2568, 3.2463, 3.2415, 3.2364, 3.2347]}}};
+</script>
+<script>
+(function () {
+  "use strict";
+  var NS = "http://www.w3.org/2000/svg";
+  function $(id) { return document.getElementById(id); }
+  function cssv(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function sv(tag, a, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in a) e.setAttribute(k, a[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(parent, x, y, s, a) {
+    var t = sv("text", Object.assign({ x: x, y: y }, a || {}), parent); t.textContent = s; return t;
+  }
+  function h(tag, cls, parent, text) {
+    var e = document.createElement(tag); if (cls) e.className = cls;
+    if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e;
+  }
+  var tip = $("tip");
+  function showTip(ev, html) {
+    tip.innerHTML = html; tip.style.opacity = 1;
+    var x = ev.clientX + 14, y = ev.clientY + 14;
+    if (x + 270 > window.innerWidth) x = ev.clientX - 274;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  function hideTip() { tip.style.opacity = 0; }
+  function hover(node, html) {
+    node.addEventListener("mousemove", function (e) { showTip(e, html); });
+    node.addEventListener("mouseleave", hideTip);
+    node.addEventListener("touchstart", function (e) { showTip(e.touches[0], html); }, { passive: true });
+  }
+  function fmt(x, d) { return Number(x).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function ppl(x) { return x >= 1000 ? fmt(x, 0) : fmt(x, 1); }
+  function buttons(box, items, cur, onPick) {
+    box.innerHTML = "";
+    items.forEach(function (it) {
+      var b = h("button", "btn" + (it.k === cur ? " on" : ""), box, it.l); b.type = "button";
+      b.setAttribute("aria-pressed", it.k === cur ? "true" : "false");
+      b.addEventListener("click", function () { onPick(it.k); });
+    });
+  }
+  function marker(parent, shape, x, y, s, fill) {
+    var ring = cssv("--surface"), a = { fill: fill, stroke: ring, "stroke-width": 2 };
+    var r = s / 2, p;
+    if (shape === "o") return sv("circle", Object.assign({ cx: x, cy: y, r: r }, a), parent);
+    if (shape === "s") return sv("rect", Object.assign({ x: x - r, y: y - r, width: s, height: s, rx: 2 }, a), parent);
+    if (shape === "^") p = [[x, y - r * 1.2], [x + r * 1.1, y + r * 0.8], [x - r * 1.1, y + r * 0.8]];
+    else if (shape === "v") p = [[x, y + r * 1.2], [x + r * 1.1, y - r * 0.8], [x - r * 1.1, y - r * 0.8]];
+    else if (shape === "D" || shape === "P") p = [[x, y - r * 1.25], [x + r * 1.1, y], [x, y + r * 1.25], [x - r * 1.1, y]];
+    else if (shape === "X") {
+      var g = sv("g", {}, parent), d = r * 0.95;
+      var path = "M" + (x - d) + "," + (y - d) + "L" + (x + d) + "," + (y + d) + "M" + (x + d) + "," + (y - d) + "L" + (x - d) + "," + (y + d);
+      sv("path", { d: path, stroke: ring, "stroke-width": 6, "stroke-linecap": "round" }, g);
+      sv("path", { d: path, stroke: fill, "stroke-width": 3, "stroke-linecap": "round" }, g);
+      return g;
+    }
+    var el = sv("polygon", Object.assign({ points: p.map(function (q) { return q.join(","); }).join(" ") }, a), parent);
+    if (shape === "P") el.setAttribute("fill-opacity", "0.55");
+    return el;
+  }
+  function legendSwatch(box, label, color, shape, dashed) {
+    var s = h("span", null, box);
+    var g = document.createElementNS(NS, "svg"); g.setAttribute("viewBox", "0 0 14 14"); s.appendChild(g);
+    if (shape === "line") sv("line", { x1: 0, y1: 7, x2: 14, y2: 7, stroke: color, "stroke-width": 2.5, "stroke-dasharray": dashed ? "2 2" : "" }, g);
+    else if (shape === "box") sv("rect", { x: 1, y: 1, width: 12, height: 12, rx: 3, fill: color }, g);
+    else marker(g, shape, 7, 7, 9, color);
+    s.appendChild(document.createTextNode(label));
+  }
+
+
+  var K = "full-random-K", A = "+noadj+stop+lazy";
+  function nm(model, S, extra) { return model + "@" + K + S + A + (extra || ""); }
+  var COL = { teacher: "--teacher", ce: "--scratch", kd: "--kd", sharp: "--warn", small: "--kd3", state: "--kd2" };
+  var SUM = D.summary;
+  function barsSet(box, rows, unit, mxv) {
+    box.innerHTML = "";
+    var mx = mxv || 0; rows.forEach(function (r) { if (!mxv) mx = Math.max(mx, r[1]); });
+    rows.forEach(function (r) {
+      if (r[3]) h("div", "grp", box, r[3]);
+      h("div", "lab", box, r[0]);
+      var tr = h("div", "track", box), f = h("div", "fill", tr);
+      f.style.width = (100 * r[1] / mx) + "%"; f.style.background = cssv(r[2]);
+      h("div", "val", box, unit(r[1]));
+      if (r[4]) hover(tr, r[4]);
+    });
+  }
+
+  // ---------- Idea 2: cost of cutting passes ----------
+  function cutDraw() {
+    var rows = [32, 16, 8, 4].map(function (S) {
+      var s = SUM[nm("teacher", S)];
+      return [S + " passes", s.ppl, "--teacher", null, "teacher, " + S + " passes<br>scorer ppl " + ppl(s.ppl) + " [" + ppl(s.ci[0]) + ", " + ppl(s.ci[1]) + "]<br>×" + fmt(s.ppl / SUM[nm("teacher", 32)].ppl, 2) + " vs 32 passes"];
+    });
+    barsSet($("cutBars"), rows, function (v) { return ppl(v); });
+  }
+
+  // ---------- Idea 4: trajectory cut into student passes ----------
+  var tjS = 8, tjTimer = null;
+  function tjDraw() {
+    buttons($("tjS"), [4, 8, 16].map(function (s) { return { k: s, l: "student with " + s + " passes" }; }), tjS, function (k) {
+      tjS = k; var r = $("tjJ"); r.max = k - 1; if (+r.value > k - 1) r.value = k - 1; tjDraw();
+    });
+    var t = D.traj, j = +$("tjJ").value, a = 32 * j / tjS, b = 32 * (j + 1) / tjS, box = $("tjText");
+    $("tjJV").textContent = (j + 1) + " / " + tjS;
+    box.innerHTML = ""; h("span", "pr", box, t.prompt);
+    var seen = 0, span = 0, rest = 0;
+    for (var i = 0; i < t.toks.length; i++) {
+      var st = t.step[i];
+      if (st <= a) { seen++; h("span", "t", box, t.toks[i]); }
+      else if (st <= b) { span++; h("span", "t new", box, t.toks[i]); }
+      else { rest++; box.appendChild(document.createTextNode(" ")); h("span", "m", box, "▢"); }
+    }
+    $("tjFacts").innerHTML = "<span>Student sees the teacher's state after pass <b>" + a + "</b></span>" +
+      "<span>Span = teacher passes <b>" + (a + 1) + "–" + b + "</b> (" + (b - a) + " passes in one)</span>" +
+      "<span>Fixed: <b>" + seen + "</b> · span: <b>" + span + "</b> · rest: <b>" + rest + "</b></span>";
+  }
+  $("tjJ").addEventListener("input", tjDraw);
+  $("tjPlay").addEventListener("click", function () {
+    if (tjTimer) { clearInterval(tjTimer); tjTimer = null; $("tjPlay").textContent = "▶ Play"; return; }
+    var r = $("tjJ"); if (+r.value >= +r.max) r.value = 0;
+    $("tjPlay").textContent = "❚❚ Pause"; tjDraw();
+    tjTimer = setInterval(function () {
+      if (+r.value >= +r.max) { clearInterval(tjTimer); tjTimer = null; $("tjPlay").textContent = "▶ Play"; return; }
+      r.value = +r.value + 1; tjDraw();
+    }, tjS > 8 ? 450 : 900);
+  });
+
+  // ---------- Idea 7: sharpening ----------
+  var shMode = "ppl";
+  var SH = [["teacher", nm("teacher", 8), "--teacher"], ["CE-only student", nm("ce", 8), "--scratch"],
+            ["KD student (kd_l100)", nm("kd_l100", 8), "--kd"], ["teacher, temperature 0.8", nm("teacher", 8, "@topk20t0.8"), "--warn"]];
+  function shDraw() {
+    buttons($("shMode"), [{ k: "ppl", l: "Perplexity (lower = better)" }, { k: "d2", l: "Distinct-2 (higher = more varied)" }], shMode, function (k) { shMode = k; shDraw(); });
+    var rows = SH.map(function (r) {
+      var s = SUM[r[1]];
+      return [r[0], shMode === "ppl" ? s.ppl : s.d2, r[2], null, "<b>" + r[0] + "</b>, 8 passes<br>scorer ppl " + ppl(s.ppl) + "<br>Distinct-2 " + fmt(s.d2, 3) + " · repetitive " + fmt(s.rep * 100, 1) + "%"];
+    });
+    barsSet($("shBars"), rows, function (v) { return shMode === "ppl" ? ppl(v) : fmt(v, 3); }, shMode === "ppl" ? 65 : 0.5);
+  }
+
+  // ---------- Idea 8: training curves ----------
+  var cvMode = "val_span_ce", cvOn = null;
+  var RUNS = [["ce", "CE-only (λ 0)", "--scratch", ""], ["kd", "KD λ 0.5, T 2", "--kd", ""], ["kd_l25", "λ 0.25", "--kd2", "4 3"],
+              ["kd_l100", "λ 1 (best)", "--teacher", ""], ["kd_T1", "T 1", "--warn", "4 3"], ["kd_state", "same-state targets", "--axis", "2 2"],
+              ["kd_small", "4 layers", "--kd3", ""]];
+  function cvDraw() {
+    buttons($("cvMode"), [{ k: "val_span_ce", l: "span CE (teacher's next tokens)" }, { k: "val_sched_ce", l: "real text CE" }, { k: "val_traj", l: "full KD loss" }], cvMode, function (k) { cvMode = k; cvDraw(); });
+    if (!cvOn) { cvOn = {}; RUNS.forEach(function (r) { cvOn[r[0]] = r[0] !== "kd_small"; }); }
+    var lg = $("cvLegend"); lg.innerHTML = "";
+    RUNS.forEach(function (r) {
+      var b = h("button", null, lg); b.type = "button"; b.setAttribute("aria-pressed", cvOn[r[0]] ? "true" : "false");
+      var i = h("i", null, b); i.style.background = cssv(r[2]); b.appendChild(document.createTextNode(r[1]));
+      b.addEventListener("click", function () { cvOn[r[0]] = !cvOn[r[0]]; cvDraw(); });
+    });
+    var g = $("cvChart"); g.innerHTML = "";
+    var W = 640, H = 320, L = 58, R = 18, T = 12, B = 40, lo = 1e9, hi = -1e9;
+    RUNS.forEach(function (r) { if (cvOn[r[0]]) D.curves[r[0]][cvMode].forEach(function (v) { lo = Math.min(lo, v); hi = Math.max(hi, v); }); });
+    if (lo > hi) { lo = 0; hi = 1; }
+    var pad = (hi - lo) * 0.08 || 0.01; lo -= pad; hi += pad;
+    var x = function (s) { return L + (W - L - R) * s / 1500; }, y = function (v) { return T + (H - T - B) * (hi - v) / (hi - lo); };
+    for (var k = 0; k <= 4; k++) {
+      var v = lo + (hi - lo) * k / 4;
+      sv("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), "class": "gridl" }, g);
+      txt(g, L - 6, y(v) + 4, fmt(v, 3), { "text-anchor": "end" });
+    }
+    [0, 250, 500, 750, 1000, 1250, 1500].forEach(function (s) { txt(g, x(s), H - B + 16, s, { "text-anchor": "middle" }); });
+    txt(g, (L + W - R) / 2, H - 4, "training update", { "text-anchor": "middle" });
+    RUNS.forEach(function (r) {
+      if (!cvOn[r[0]]) return;
+      var c = D.curves[r[0]], col = cssv(r[2]);
+      var d = c.step.map(function (s, i) { return (i ? "L" : "M") + x(s) + "," + y(c[cvMode][i]); }).join("");
+      sv("path", { d: d, fill: "none", stroke: col, "stroke-width": 2, "stroke-dasharray": r[3] }, g);
+      c.step.forEach(function (s, i) {
+        var p = sv("circle", { cx: x(s), cy: y(c[cvMode][i]), r: 3.5, fill: col, stroke: cssv("--surface"), "stroke-width": 1.5 }, g);
+        var hit = sv("circle", { cx: x(s), cy: y(c[cvMode][i]), r: 9, fill: "transparent" }, g);
+        hover(hit, "<b>" + r[1] + "</b><br>update " + s + "<br>" + fmt(c[cvMode][i], 4));
+      });
+    });
+  }
+
+  // ---------- Idea 9: quality vs passes ----------
+  var qvMode = "test";
+  var QV = [["teacher", "teacher", "--teacher", "o", [32, 16, 8, 4]], ["ce", "CE-only student", "--scratch", "s", [16, 8, 4]],
+            ["kd_l100", "KD student (kd_l100)", "--kd", "D", [16, 8, 4]]];
+  function qvDraw() {
+    buttons($("qvMode"), [{ k: "test", l: "Test (1,200 stories, 95% CI)" }, { k: "dev", l: "Validation (200 stories)" }], qvMode, function (k) { qvMode = k; qvDraw(); });
+    var src = qvMode === "test" ? SUM : D.dev;
+    var lg = $("qvLegend"); lg.innerHTML = "";
+    QV.forEach(function (q) { legendSwatch(lg, q[1], cssv(q[2]), q[3]); });
+    legendSwatch(lg, "teacher, temperature 0.8", cssv("--warn"), "^");
+    var g = $("qvChart"); g.innerHTML = "";
+    var W = 640, H = 340, L = 58, R = 18, T = 12, B = 40;
+    var x = function (S) { return L + (W - L - R) * (Math.log2(S) - 1.8) / (5.2 - 1.8); };
+    var yl = Math.log10(30), yh = Math.log10(130);
+    var y = function (v) { return T + (H - T - B) * (yh - Math.log10(v)) / (yh - yl); };
+    [30, 40, 50, 60, 80, 100, 120].forEach(function (v) {
+      sv("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), "class": "gridl" }, g);
+      txt(g, L - 6, y(v) + 4, v, { "text-anchor": "end" });
+    });
+    [4, 8, 16, 32].forEach(function (S) { txt(g, x(S), H - B + 16, S, { "text-anchor": "middle" }); });
+    txt(g, (L + W - R) / 2, H - 4, "forward passes per story", { "text-anchor": "middle" });
+    txt(g, 14, (T + H - B) / 2, "scorer perplexity", { "text-anchor": "middle", transform: "rotate(-90 14 " + ((T + H - B) / 2) + ")" });
+    function pt(n, label, col, shape, S) {
+      var s = src[n]; if (!s) return;
+      var px = x(S), py = y(s.ppl);
+      if (s.ci) sv("line", { x1: px, x2: px, y1: y(s.ci[0]), y2: y(s.ci[1]), stroke: col, "stroke-width": 2 }, g);
+      marker(g, shape, px, py, 11, col);
+      var hit = sv("circle", { cx: px, cy: py, r: 13, fill: "transparent" }, g);
+      hover(hit, "<b>" + label + "</b>, " + S + " passes<br>scorer ppl " + ppl(s.ppl) + (s.ci ? " [" + ppl(s.ci[0]) + ", " + ppl(s.ci[1]) + "]" : "") +
+        "<br>Distinct-2 " + fmt(s.d2, 3) + " · repetitive " + fmt(s.rep * 100, 1) + "%");
+    }
+    QV.forEach(function (q) {
+      var col = cssv(q[2]);
+      var pts = q[4].filter(function (S) { return src[nm(q[0], S)]; });
+      sv("path", { d: pts.map(function (S, i) { return (i ? "L" : "M") + x(S) + "," + y(src[nm(q[0], S)].ppl); }).join(""), fill: "none", stroke: col, "stroke-width": 2, "stroke-dasharray": q[0] === "ce" ? "5 4" : "" }, g);
+    });
+    QV.forEach(function (q) { q[4].forEach(function (S) { pt(nm(q[0], S), q[1], cssv(q[2]), q[3], S); }); });
+    pt(nm("teacher", 8, "@topk20t0.8"), "teacher, temperature 0.8", cssv("--warn"), "^", 8);
+    if (qvMode === "dev") pt(nm("teacher", 4, "@topk20t0.8"), "teacher, temperature 0.8", cssv("--warn"), "^", 4);
+  }
+
+  // ---------- Idea 10: speed ----------
+  function spDraw() {
+    var T = D.timing;
+    var rows = [["teacher, 32 passes", nm("teacher", 32), "--teacher"], ["teacher, 16 passes", nm("teacher", 16), "--teacher"],
+                ["teacher, 8 passes", nm("teacher", 8), "--teacher"], ["KD student, 8 passes", nm("kd_l100", 8), "--kd"],
+                ["4-layer student, 8", nm("kd_small", 8), "--kd3"], ["KD student, 4 passes", nm("kd_l100", 4), "--kd"]].map(function (r) {
+      var t = T[r[1]], s = SUM[r[1]];
+      return [r[0], t.median_s * 1000, r[2], null, "<b>" + r[0] + "</b><br>median " + fmt(t.median_s * 1000, 0) + " ms (p95 " + fmt(t.p95_s * 1000, 0) + ")<br>" +
+        fmt(t.ms_per_pass, 1) + " ms per pass<br>" + fmt(T[nm("teacher", 32)].median_s / t.median_s, 2) + "× vs teacher 32<br>scorer ppl " + ppl(s.ppl)];
+    });
+    barsSet($("spBars"), rows, function (v) { return Math.round(v) + " ms"; });
+  }
+
+  // ---------- Idea 11: stories + errors ----------
+  var stCur = nm("teacher", 32);
+  var STL = [[nm("teacher", 32), "teacher, 32 passes", "--teacher"], [nm("teacher", 8), "teacher, 8 passes", "--teacher"],
+             [nm("ce", 8), "CE-only, 8", "--scratch"], [nm("kd_l100", 8), "KD student, 8", "--kd"],
+             [nm("teacher", 8, "@topk20t0.8"), "teacher T 0.8, 8", "--warn"]];
+  function stDraw() {
+    buttons($("stMode"), STL.map(function (s) { return { k: s[0], l: s[2] ? s[1] : s[1] }; }), stCur, function (k) { stCur = k; stDraw(); });
+    var s = D.stories[stCur], lab = STL.filter(function (x) { return x[0] === stCur; })[0], box = $("stText");
+    box.innerHTML = "";
+    var w = h("div", "who", box, lab[1] + " · " + s.nfe + " passes"); w.style.color = cssv(lab[2]);
+    var p = h("div", null, box); h("b", null, p, s.prompt); p.appendChild(document.createTextNode(s.text));
+  }
+  var ED = [["teacher_K32", "teacher 32", "--teacher"], ["teacher_K8", "teacher 8", "--axis"], ["ce_K8", "CE-only 8", "--scratch"], ["kd_l100_K8", "KD 8", "--kd"]];
+  var EC = [["repetition", "repetition"], ["contradiction", "contradiction"], ["early_wrong_turn", "early wrong turn"], ["ungrammatical", "ungrammatical"],
+            ["premature_ending", "premature ending"], ["ignored_prompt", "ignored prompt"], ["entity", "entity change"]];
+  function erDraw() {
+    var box = $("erGrid"), E = D.errors; box.innerHTML = "";
+    h("div", "hd", box, "");
+    ED.forEach(function (d) { var e = h("div", "hd", box, d[1]); e.style.fontWeight = "700"; });
+    EC.forEach(function (c) {
+      h("div", null, box, c[1]);
+      ED.forEach(function (d) {
+        var r = E[d[0]][c[0]], cell = h("div", "cell", box), i = h("i", null, cell);
+        i.style.width = (100 * r.rate) + "%"; i.style.background = cssv(d[2]); i.style.opacity = 0.75;
+        h("b", null, cell, r.count + "/" + E[d[0]].n);
+        hover(cell, "<b>" + d[1] + "</b>: " + c[1] + " in " + r.count + " of " + E[d[0]].n + " stories<br>95% interval " + Math.round(r.ci95[0] * 100) + "–" + Math.round(r.ci95[1] * 100) + "%<br>AI labels, not human");
+      });
+    });
+    $("erFacts").innerHTML = ED.map(function (d) { return "<span>" + d[1] + ": <b>" + fmt(E[d[0]].rubric_overall, 2) + "</b> / 5</span>"; }).join("");
+  }
+
+  // ---------- Phase 14: ablations ----------
+  var abMode = "lam";
+  var AB = {
+    lam: [["λ 0 (CE-only)", "ce", "--scratch"], ["λ 0.25", "kd_l25", "--kd"], ["λ 0.5", "kd", "--kd"], ["λ 0.75", "kd_l75", "--kd"], ["λ 1", "kd_l100", "--kd"]],
+    T: [["T 1", "kd_T1", "--kd"], ["T 2", "kd", "--kd"], ["T 4", "kd_T4", "--kd"]],
+    tgt: [["no teacher (CE-only)", "ce", "--scratch"], ["same-state targets", "kd_state", "--kd2"], ["trajectory targets", "kd", "--kd"]],
+    size: [["teacher (no training)", "teacher", "--teacher"], ["6 layers", "kd", "--kd"], ["4 layers", "kd_small", "--kd3"]]
+  };
+  function abDraw() {
+    buttons($("abMode"), [{ k: "lam", l: "KD weight λ" }, { k: "T", l: "temperature T" }, { k: "tgt", l: "target type" }, { k: "size", l: "student size" }], abMode, function (k) { abMode = k; abDraw(); });
+    var rows = AB[abMode].map(function (r) {
+      var s = D.dev[nm(r[1], 8)];
+      return [r[0], s.ppl, r[2], null, "<b>" + r[0] + "</b> (" + r[1] + ")<br>dev ppl " + ppl(s.ppl) + "<br>Distinct-2 " + fmt(s.d2, 3) + " · repetitive " + fmt(s.rep * 100, 1) + "%"];
+    });
+    barsSet($("abBars"), rows, function (v) { return ppl(v); }, 70);
+  }
+
+  function drawAll() { cutDraw(); tjDraw(); shDraw(); cvDraw(); qvDraw(); spDraw(); stDraw(); erDraw(); abDraw(); }
+  window.__redraw = drawAll;
+  drawAll();
+})();
+</script>
+<script>
+(function () {
+  var root = document.documentElement;
+  try { var t = localStorage.getItem("p7-theme"); if (t) root.setAttribute("data-theme", t); } catch (e) {}
+  if (window.__redraw) window.__redraw();
+  document.getElementById("themeBtn").addEventListener("click", function () {
+    var cur = root.getAttribute("data-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    var next = cur === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("p7-theme", next); } catch (e) {}
+    if (window.__redraw) window.__redraw();
+  });
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (window.__redraw) window.__redraw(); });
+  var links = Array.prototype.slice.call(document.querySelectorAll("#toc a"));
+  var targets = links.map(function (a) { return document.querySelector(a.getAttribute("href")); });
+  if ("IntersectionObserver" in window) {
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          var i = targets.indexOf(en.target);
+          links.forEach(function (l) { l.classList.remove("active"); });
+          if (i >= 0) links[i].classList.add("active");
+        }
+      });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    targets.forEach(function (t) { if (t) obs.observe(t); });
+  }
+})();
+</script>
+</body>
+</html>

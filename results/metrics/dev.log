@@ -1,0 +1,75 @@
+Loading weights:   0%|          | 0/56 [00:00<?, ?it/s]Loading weights: 100%|██████████| 56/56 [00:00<00:00, 28042.15it/s]
+[transformers] [1mGPTNeoForCausalLM LOAD REPORT[0m from: D:\TTI\Projrcts List\project4\checkpoints\scorer_tinystories33m
+Key                                                   | Status     |  | 
+------------------------------------------------------+------------+--+-
+transformer.h.{0, 1, 2, 3}.attn.attention.bias        | UNEXPECTED |  | 
+transformer.h.{0, 1, 2, 3}.attn.attention.masked_bias | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+36 systems on 200 prompts x 1 seeds
+ce@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 13 s
+ce@full-random-K16+noadj+stop+lazy: 200 stories, gen 31 s, score 12 s
+kd@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 12 s
+kd@full-random-K16+noadj+stop+lazy: 200 stories, gen 31 s, score 12 s
+kd_l25@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 12 s
+kd_l25@full-random-K8+noadj+stop+lazy: 200 stories, gen 17 s, score 12 s
+kd_l25@full-random-K16+noadj+stop+lazy: 200 stories, gen 30 s, score 12 s
+kd_l75@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 12 s
+kd_l75@full-random-K8+noadj+stop+lazy: 200 stories, gen 18 s, score 12 s
+kd_l75@full-random-K16+noadj+stop+lazy: 200 stories, gen 31 s, score 12 s
+kd_l100@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 12 s
+kd_l100@full-random-K8+noadj+stop+lazy: 200 stories, gen 18 s, score 12 s
+kd_l100@full-random-K16+noadj+stop+lazy: 200 stories, gen 31 s, score 12 s
+kd_T1@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 12 s
+kd_T1@full-random-K8+noadj+stop+lazy: 200 stories, gen 18 s, score 13 s
+kd_T1@full-random-K16+noadj+stop+lazy: 200 stories, gen 31 s, score 13 s
+kd_T4@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 12 s
+kd_T4@full-random-K8+noadj+stop+lazy: 200 stories, gen 18 s, score 13 s
+kd_T4@full-random-K16+noadj+stop+lazy: 200 stories, gen 31 s, score 12 s
+kd_state@full-random-K4+noadj+stop+lazy: 200 stories, gen 11 s, score 12 s
+kd_state@full-random-K8+noadj+stop+lazy: 200 stories, gen 18 s, score 13 s
+kd_state@full-random-K16+noadj+stop+lazy: 200 stories, gen 31 s, score 13 s
+kd_small@full-random-K4+noadj+stop+lazy: 200 stories, gen 9 s, score 13 s
+kd_small@full-random-K8+noadj+stop+lazy: 200 stories, gen 13 s, score 12 s
+kd_small@full-random-K16+noadj+stop+lazy: 200 stories, gen 23 s, score 12 s
+kd@full-conf-K8+stop+lazy: 200 stories, gen 18 s, score 12 s
+ce@full-conf-K8+stop+lazy: 200 stories, gen 18 s, score 13 s
+real-reference                                                 passes   0.0  ppl     4.4  D2 0.621  rep   6.5%  dup 0.01%
+ce@full-random-K4+noadj+stop+lazy                              passes   4.0  ppl   108.0  D2 0.528  rep   0.0%  dup 0.26%
+kd@full-random-K4+noadj+stop+lazy                              passes   4.0  ppl    91.6  D2 0.496  rep   0.0%  dup 0.22%
+kd_T1@full-random-K4+noadj+stop+lazy                           passes   4.0  ppl   100.7  D2 0.518  rep   0.0%  dup 0.27%
+kd_T4@full-random-K4+noadj+stop+lazy                           passes   4.0  ppl    95.7  D2 0.506  rep   0.5%  dup 0.28%
+kd_l100@full-random-K4+noadj+stop+lazy                         passes   4.0  ppl    88.9  D2 0.496  rep   0.0%  dup 0.21%
+kd_l25@full-random-K4+noadj+stop+lazy                          passes   4.0  ppl    94.3  D2 0.506  rep   0.0%  dup 0.27%
+kd_l75@full-random-K4+noadj+stop+lazy                          passes   4.0  ppl    90.8  D2 0.491  rep   0.0%  dup 0.27%
+kd_small@full-random-K4+noadj+stop+lazy                        passes   4.0  ppl   114.4  D2 0.484  rep   0.5%  dup 0.29%
+kd_state@full-random-K4+noadj+stop+lazy                        passes   4.0  ppl   103.6  D2 0.529  rep   0.0%  dup 0.27%
+teacher@full-random-K4+noadj+stop+lazy                         passes   4.0  ppl   113.3  D2 0.547  rep   0.0%  dup 0.22%
+teacher@full-random-K4+noadj+stop+lazy@topk20t0.8              passes   4.0  ppl    83.9  D2 0.504  rep   1.0%  dup 0.20%
+teacher@full-conf-K8+stop+lazy                                 passes   7.3  ppl  3453.3  D2 0.491  rep   0.0%  dup 3.87%
+kd@full-conf-K8+stop+lazy                                      passes   7.5  ppl  3136.0  D2 0.414  rep   0.5%  dup 3.81%
+ce@full-conf-K8+stop+lazy                                      passes   7.8  ppl  3799.3  D2 0.455  rep   0.0%  dup 3.89%
+ce@full-random-K8+noadj+stop+lazy                              passes   8.0  ppl    59.2  D2 0.516  rep   0.0%  dup 0.20%
+kd@full-random-K8+noadj+stop+lazy                              passes   8.0  ppl    50.8  D2 0.480  rep   1.5%  dup 0.30%
+kd_T1@full-random-K8+noadj+stop+lazy                           passes   8.0  ppl    54.2  D2 0.497  rep   0.0%  dup 0.26%
+kd_T4@full-random-K8+noadj+stop+lazy                           passes   8.0  ppl    51.5  D2 0.488  rep   1.5%  dup 0.23%
+kd_l100@full-random-K8+noadj+stop+lazy                         passes   8.0  ppl    49.0  D2 0.467  rep   1.5%  dup 0.23%
+kd_l25@full-random-K8+noadj+stop+lazy                          passes   8.0  ppl    52.1  D2 0.488  rep   2.0%  dup 0.17%
+kd_l75@full-random-K8+noadj+stop+lazy                          passes   8.0  ppl    50.9  D2 0.471  rep   1.0%  dup 0.26%
+kd_small@full-random-K8+noadj+stop+lazy                        passes   8.0  ppl    65.7  D2 0.466  rep   2.0%  dup 0.31%
+kd_state@full-random-K8+noadj+stop+lazy                        passes   8.0  ppl    56.9  D2 0.512  rep   1.5%  dup 0.24%
+teacher@full-random-K8+noadj+stop+lazy                         passes   8.0  ppl    60.9  D2 0.535  rep   0.5%  dup 0.23%
+teacher@full-random-K8+noadj+stop+lazy@topk20t0.8              passes   8.0  ppl    43.9  D2 0.491  rep   1.5%  dup 0.21%
+ce@full-random-K16+noadj+stop+lazy                             passes  16.0  ppl    45.2  D2 0.506  rep   0.5%  dup 0.23%
+kd@full-random-K16+noadj+stop+lazy                             passes  16.0  ppl    39.0  D2 0.467  rep   3.0%  dup 0.25%
+kd_T1@full-random-K16+noadj+stop+lazy                          passes  16.0  ppl    41.8  D2 0.481  rep   3.5%  dup 0.29%
+kd_T4@full-random-K16+noadj+stop+lazy                          passes  16.0  ppl    41.9  D2 0.470  rep   3.0%  dup 0.26%
+kd_l100@full-random-K16+noadj+stop+lazy                        passes  16.0  ppl    37.6  D2 0.460  rep   3.0%  dup 0.22%
+kd_l25@full-random-K16+noadj+stop+lazy                         passes  16.0  ppl    40.3  D2 0.472  rep   4.5%  dup 0.24%
+kd_l75@full-random-K16+noadj+stop+lazy                         passes  16.0  ppl    37.6  D2 0.457  rep   4.0%  dup 0.25%
+kd_small@full-random-K16+noadj+stop+lazy                       passes  16.0  ppl    53.3  D2 0.454  rep   4.5%  dup 0.31%
+kd_state@full-random-K16+noadj+stop+lazy                       passes  16.0  ppl    42.8  D2 0.498  rep   1.0%  dup 0.23%
+teacher@full-random-K16+noadj+stop                             passes  16.0  ppl    47.8  D2 0.526  rep   0.5%  dup 0.22%
+teacher@full-random-K16+noadj+stop+lazy                        passes  16.0  ppl    48.3  D2 0.517  rep   0.5%  dup 0.23%
+teacher@full-random-K32+noadj+stop+lazy                        passes  32.0  ppl    40.2  D2 0.517  rep   2.5%  dup 0.22%

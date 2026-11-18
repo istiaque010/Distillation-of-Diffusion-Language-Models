@@ -1,0 +1,548 @@
+[
+ {
+  "a": "teacher@full-random-K8+noadj+stop+lazy",
+  "b": "teacher@full-random-K32+noadj+stop+lazy",
+  "question": "H1: teacher, 8 vs 32 passes (step reduction alone)",
+  "nfe_a": 8.0,
+  "nfe_b": 31.970833333333335,
+  "ppl_ratio": 1.5198190869513428,
+  "ppl_ratio_ci95": [
+   1.4820968920845492,
+   1.557518684585189
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.006707791345714632,
+  "dup_diff_ci95_pp": [
+   -0.027147428576179716,
+   0.04134943942400519
+  ],
+  "rep_diff_pp": -1.25,
+  "rep_diff_ci95_pp": [
+   -2.166666666666667,
+   -0.33333333333333337
+  ],
+  "d2_diff_mean": 0.010753468842386718,
+  "d2_cells_a_lower": 2,
+  "d2_cells": 12
+ },
+ {
+  "a": "teacher@full-random-K16+noadj+stop+lazy",
+  "b": "teacher@full-random-K32+noadj+stop+lazy",
+  "question": "teacher, 16 vs 32 passes",
+  "nfe_a": 15.995,
+  "nfe_b": 31.970833333333335,
+  "ppl_ratio": 1.1501466697068787,
+  "ppl_ratio_ci95": [
+   1.117175602144392,
+   1.182369873627185
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": -0.04416903552544094,
+  "dup_diff_ci95_pp": [
+   -0.07761192679294297,
+   -0.011062191972594674
+  ],
+  "rep_diff_pp": -0.7500000000000001,
+  "rep_diff_ci95_pp": [
+   -1.8333333333333333,
+   0.24999999999999997
+  ],
+  "d2_diff_mean": 0.007272423253702119,
+  "d2_cells_a_lower": 3,
+  "d2_cells": 12
+ },
+ {
+  "a": "teacher@full-random-K4+noadj+stop+lazy",
+  "b": "teacher@full-random-K8+noadj+stop+lazy",
+  "question": "teacher, 4 vs 8 passes",
+  "nfe_a": 4.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 1.821428385920618,
+  "ppl_ratio_ci95": [
+   1.771157586804262,
+   1.8724267890545971
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": -0.01652386947880676,
+  "dup_diff_ci95_pp": [
+   -0.05393384258713125,
+   0.019201653484962534
+  ],
+  "rep_diff_pp": -0.3333333333333333,
+  "rep_diff_ci95_pp": [
+   -0.8333333333333334,
+   0.08333333333333334
+  ],
+  "d2_diff_mean": 0.012283204797514333,
+  "d2_cells_a_lower": 1,
+  "d2_cells": 12
+ },
+ {
+  "a": "ce@full-random-K8+noadj+stop+lazy",
+  "b": "teacher@full-random-K8+noadj+stop+lazy",
+  "question": "H2: CE-only student vs teacher, 8 passes (extra training alone)",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 0.9584495644993068,
+  "ppl_ratio_ci95": [
+   0.939954377791581,
+   0.9777519821799808
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": -0.028322354278767416,
+  "dup_diff_ci95_pp": [
+   -0.06218752076304531,
+   0.004275769854272799
+  ],
+  "rep_diff_pp": -0.25,
+  "rep_diff_ci95_pp": [
+   -0.75,
+   0.24999999999999997
+  ],
+  "d2_diff_mean": -0.014918441187841094,
+  "d2_cells_a_lower": 11,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd@full-random-K8+noadj+stop+lazy",
+  "b": "ce@full-random-K8+noadj+stop+lazy",
+  "question": "H3: KD student (pre-registered kd) vs CE-only, 8 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 0.8730339804516262,
+  "ppl_ratio_ci95": [
+   0.8543649073207155,
+   0.8912529280784088
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.023977773759984063,
+  "dup_diff_ci95_pp": [
+   -0.0040946620782470675,
+   0.05211467299498073
+  ],
+  "rep_diff_pp": 1.1666666666666665,
+  "rep_diff_ci95_pp": [
+   0.41666666666666674,
+   1.9187499999999698
+  ],
+  "d2_diff_mean": -0.03456399629341243,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K8+noadj+stop+lazy",
+  "b": "ce@full-random-K8+noadj+stop+lazy",
+  "question": "H3: best KD student vs CE-only, 8 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 0.8410150888669928,
+  "ppl_ratio_ci95": [
+   0.8216056753918899,
+   0.860669790843442
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.020340671095250187,
+  "dup_diff_ci95_pp": [
+   -0.010878596228131561,
+   0.05041186230196343
+  ],
+  "rep_diff_pp": 2.5,
+  "rep_diff_ci95_pp": [
+   1.5,
+   3.5833333333333335
+  ],
+  "d2_diff_mean": -0.04328165556340346,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K16+noadj+stop+lazy",
+  "b": "ce@full-random-K16+noadj+stop+lazy",
+  "question": "best KD vs CE-only, 16 passes",
+  "nfe_a": 15.995,
+  "nfe_b": 15.999166666666667,
+  "ppl_ratio": 0.8294273381173654,
+  "ppl_ratio_ci95": [
+   0.8097719711029198,
+   0.8488492426020864
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.01330581568775341,
+  "dup_diff_ci95_pp": [
+   -0.021184900835489018,
+   0.045566050804375896
+  ],
+  "rep_diff_pp": 4.333333333333334,
+  "rep_diff_ci95_pp": [
+   2.9166666666666665,
+   5.833333333333333
+  ],
+  "d2_diff_mean": -0.051034561102822285,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K4+noadj+stop+lazy",
+  "b": "ce@full-random-K4+noadj+stop+lazy",
+  "question": "best KD vs CE-only, 4 passes",
+  "nfe_a": 4.0,
+  "nfe_b": 4.0,
+  "ppl_ratio": 0.8320809962333143,
+  "ppl_ratio_ci95": [
+   0.813245631103156,
+   0.8516427803764455
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.023643581805503095,
+  "dup_diff_ci95_pp": [
+   -0.0031358399570814667,
+   0.050746985333952825
+  ],
+  "rep_diff_pp": 0.75,
+  "rep_diff_ci95_pp": [
+   0.25,
+   1.4166666666666665
+  ],
+  "d2_diff_mean": -0.04358697307259085,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K8+noadj+stop+lazy",
+  "b": "teacher@full-random-K8+noadj+stop+lazy",
+  "question": "best KD student vs teacher, 8 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 0.8060705456619152,
+  "ppl_ratio_ci95": [
+   0.787900533603158,
+   0.8244918137248536
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": -0.007981683183517227,
+  "dup_diff_ci95_pp": [
+   -0.043725317790058435,
+   0.02608323691098906
+  ],
+  "rep_diff_pp": 2.25,
+  "rep_diff_ci95_pp": [
+   1.3333333333333333,
+   3.25
+  ],
+  "d2_diff_mean": -0.058200096751244546,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K16+noadj+stop+lazy",
+  "b": "teacher@full-random-K16+noadj+stop+lazy",
+  "question": "best KD student vs teacher, 16 passes",
+  "nfe_a": 15.995,
+  "nfe_b": 15.995,
+  "ppl_ratio": 0.8048057862573424,
+  "ppl_ratio_ci95": [
+   0.7862567216198062,
+   0.8240011190592095
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.03787271571282134,
+  "dup_diff_ci95_pp": [
+   0.003362474348837444,
+   0.06946205910449042
+  ],
+  "rep_diff_pp": 4.083333333333333,
+  "rep_diff_ci95_pp": [
+   2.7499999999999996,
+   5.500000000000001
+  ],
+  "d2_diff_mean": -0.06686980927133675,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K4+noadj+stop+lazy",
+  "b": "teacher@full-random-K4+noadj+stop+lazy",
+  "question": "H5: best KD student vs teacher, 4 passes",
+  "nfe_a": 4.0,
+  "nfe_b": 4.0,
+  "ppl_ratio": 0.8005181065275117,
+  "ppl_ratio_ci95": [
+   0.7817674947215361,
+   0.8200870722416285
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.025504337914913522,
+  "dup_diff_ci95_pp": [
+   -0.002663232020701701,
+   0.053880319936444036
+  ],
+  "rep_diff_pp": 0.5833333333333333,
+  "rep_diff_ci95_pp": [
+   0.0,
+   1.3333333333333333
+  ],
+  "d2_diff_mean": -0.05811070674547825,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K8+noadj+stop+lazy",
+  "b": "teacher@full-random-K16+noadj+stop+lazy",
+  "question": "H4: best KD student at 8 vs teacher at 16 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 15.995,
+  "ppl_ratio": 1.0651523262146048,
+  "ppl_ratio_ci95": [
+   1.0340392966713174,
+   1.0973050956335535
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.042895143687638346,
+  "dup_diff_ci95_pp": [
+   0.007212965955169006,
+   0.07780344166842403
+  ],
+  "rep_diff_pp": 1.7500000000000002,
+  "rep_diff_ci95_pp": [
+   0.7499999999999998,
+   2.8333333333333335
+  ],
+  "d2_diff_mean": -0.05471905116255996,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K8+noadj+stop+lazy",
+  "b": "teacher@full-random-K32+noadj+stop+lazy",
+  "question": "best KD student at 8 vs teacher at 32 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 31.970833333333335,
+  "ppl_ratio": 1.2250814007262625,
+  "ppl_ratio_ci95": [
+   1.19331221650124,
+   1.2574665353640349
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": -0.0012738918378025956,
+  "dup_diff_ci95_pp": [
+   -0.03910635224124683,
+   0.03611393797640382
+  ],
+  "rep_diff_pp": 0.9999999999999999,
+  "rep_diff_ci95_pp": [
+   -0.08333333333333352,
+   2.166666666666667
+  ],
+  "d2_diff_mean": -0.04744662790885784,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K16+noadj+stop+lazy",
+  "b": "teacher@full-random-K32+noadj+stop+lazy",
+  "question": "best KD student at 16 vs teacher at 32 passes",
+  "nfe_a": 15.995,
+  "nfe_b": 31.970833333333335,
+  "ppl_ratio": 0.9256446948247085,
+  "ppl_ratio_ci95": [
+   0.9014842204451461,
+   0.949521379482027
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": -0.006296319812619609,
+  "dup_diff_ci95_pp": [
+   -0.04494351874352361,
+   0.030802135071939938
+  ],
+  "rep_diff_pp": 3.3333333333333335,
+  "rep_diff_ci95_pp": [
+   1.8333333333333333,
+   4.833333333333333
+  ],
+  "d2_diff_mean": -0.059597386017634625,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd@full-random-K8+noadj+stop+lazy",
+  "b": "kd_state@full-random-K8+noadj+stop+lazy",
+  "question": "H6: trajectory targets vs same-state targets, 8 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 0.8900406851305852,
+  "ppl_ratio_ci95": [
+   0.8721186353449211,
+   0.9074854335616396
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": -0.0035486823677259582,
+  "dup_diff_ci95_pp": [
+   -0.03328939452010002,
+   0.024475700415735095
+  ],
+  "rep_diff_pp": 0.8333333333333331,
+  "rep_diff_ci95_pp": [
+   0.16666666666666669,
+   1.583333333333333
+  ],
+  "d2_diff_mean": -0.027793340099615094,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-random-K8+noadj+stop+lazy",
+  "b": "teacher@full-random-K8+noadj+stop+lazy@topk20t0.8",
+  "question": "H8: best KD student vs sharper teacher (temperature 0.8), 8 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 1.0982647567053292,
+  "ppl_ratio_ci95": [
+   1.0743989410276293,
+   1.1221985537708965
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.017011472939422415,
+  "dup_diff_ci95_pp": [
+   -0.017585958121362728,
+   0.04975681117315925
+  ],
+  "rep_diff_pp": 0.08333333333333318,
+  "rep_diff_ci95_pp": [
+   -0.8333333333333331,
+   0.9999999999999999
+  ],
+  "d2_diff_mean": -0.01946341910536632,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "teacher@full-random-K8+noadj+stop+lazy@topk20t0.8",
+  "b": "teacher@full-random-K8+noadj+stop+lazy",
+  "question": "sharpening alone: teacher at temperature 0.8 vs 1.0, 8 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 0.7339492055449691,
+  "ppl_ratio_ci95": [
+   0.7195172314476976,
+   0.7486721210739572
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": -0.02499315612293964,
+  "dup_diff_ci95_pp": [
+   -0.048442637550037755,
+   -0.0014647524123916305
+  ],
+  "rep_diff_pp": 2.166666666666667,
+  "rep_diff_ci95_pp": [
+   1.25,
+   3.166666666666666
+  ],
+  "d2_diff_mean": -0.03873667764587823,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_l100@full-conf-K8+stop+lazy",
+  "b": "kd_l100@full-random-K8+noadj+stop+lazy",
+  "question": "reveal rule (student): confidence vs random + no-adjacent, 8 passes",
+  "nfe_a": 7.895,
+  "nfe_b": 8.0,
+  "ppl_ratio": 43.96905663420949,
+  "ppl_ratio_ci95": [
+   41.5991939519219,
+   46.45922197031953
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 3.270587764619369,
+  "dup_diff_ci95_pp": [
+   3.175476664495077,
+   3.367451751795425
+  ],
+  "rep_diff_pp": 1.166666666666667,
+  "rep_diff_ci95_pp": [
+   -0.2500000000000002,
+   2.5833333333333335
+  ],
+  "d2_diff_mean": -0.03389772929505078,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "teacher@full-conf-K8+stop+lazy",
+  "b": "teacher@full-random-K8+noadj+stop+lazy",
+  "question": "reveal rule (teacher): confidence vs random + no-adjacent, 8 passes",
+  "nfe_a": 7.401666666666666,
+  "nfe_b": 8.0,
+  "ppl_ratio": 55.91757663701608,
+  "ppl_ratio_ci95": [
+   53.01479138974797,
+   58.958012798143585
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 3.426618925935865,
+  "dup_diff_ci95_pp": [
+   3.300502479060464,
+   3.5684438809474286
+  ],
+  "rep_diff_pp": -0.5,
+  "rep_diff_ci95_pp": [
+   -0.9166666666666666,
+   -0.16666666666666669
+  ],
+  "d2_diff_mean": -0.029468508573175446,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_small@full-random-K8+noadj+stop+lazy",
+  "b": "kd@full-random-K8+noadj+stop+lazy",
+  "question": "4-layer vs 6-layer KD student, 8 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 1.3079965792785364,
+  "ppl_ratio_ci95": [
+   1.2803406975097145,
+   1.335614296617242
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.06878575015572606,
+  "dup_diff_ci95_pp": [
+   0.03629119381721155,
+   0.1019508722551778
+  ],
+  "rep_diff_pp": 0.08333333333333334,
+  "rep_diff_ci95_pp": [
+   -0.75,
+   0.9166666666666666
+  ],
+  "d2_diff_mean": -0.010988921468580498,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ },
+ {
+  "a": "kd_small@full-random-K8+noadj+stop+lazy",
+  "b": "teacher@full-random-K8+noadj+stop+lazy",
+  "question": "4-layer KD student vs teacher, 8 passes",
+  "nfe_a": 8.0,
+  "nfe_b": 8.0,
+  "ppl_ratio": 1.094477959851298,
+  "ppl_ratio_ci95": [
+   1.0694630094953768,
+   1.1203392065289657
+  ],
+  "ppl_p": 0.0,
+  "dup_diff_pp": 0.06444116963694271,
+  "dup_diff_ci95_pp": [
+   0.02616061598302548,
+   0.10213086164808129
+  ],
+  "rep_diff_pp": 0.9999999999999999,
+  "rep_diff_ci95_pp": [
+   0.24999999999999997,
+   1.8333333333333333
+  ],
+  "d2_diff_mean": -0.06047135894983402,
+  "d2_cells_a_lower": 12,
+  "d2_cells": 12
+ }
+]
