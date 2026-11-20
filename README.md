@@ -41,20 +41,39 @@ batch 1, CPU, fp32, 24 threads. Full tables, paired tests and hypothesis verdict
 
 ### What we learned
 1. **Cutting passes without retraining is expensive.** Teacher 32 → 8 passes: perplexity ×1.52; 32 → 4: ×2.77.
+
+   ![Where cutting passes hurts](results/figures/fig5_divergence.png)
+
+   *Perplexity at 8 passes relative to the teacher at 32, per prompt type. The KD student (blue) loses far less than
+   the teacher or the CE-only student, for every kind of prompt.*
 2. **Trajectory targets work; same-state targets barely do.** A student that starts as a copy of the teacher gets
    almost no signal from the teacher's distribution *at the same state* (it already predicts exactly that). Teaching
    it what the teacher did *during and after* the next span of passes is what helps (0.890 [0.872, 0.907] vs
    same-state targets).
 3. **More teacher, lower perplexity, less variety.** λ_KD from 0 to 1 lowers dev perplexity from 59.2 to 49.0 and
    Distinct-2 from 0.516 to 0.467. T = 2 is best. The best run uses **no real-text loss at all** (λ_KD = 1).
+
+   ![Ablations](results/figures/fig4_ablations.png)
+
+   *Validation perplexity at 8 passes. Left: more weight on the teacher keeps helping. Middle: temperature 2 is best.
+   Right: trajectory targets beat same-state targets and CE-only training; a 4-layer student is worse than the teacher.*
 4. **H8 failed: distillation here is mostly sharpening.** At 8 passes, temperature 0.8 on the untouched teacher beats
    the best student (ratio 1.098 [1.074, 1.122]) with more variety. The student also got *worse* at predicting real
    hidden words (masked CE 3.53 → 3.64): it moved toward the teacher's predictable style.
+
+   ![Training curves](results/figures/fig3_training_curves.png)
+
+   *Left: the KD loss on held-out teacher trajectories. Middle and right: cross-entropy on real masked words; the best
+   student (kd_l100, pink) gets worse at real text while it learns to imitate the teacher.*
 5. **Speed is just pass count.** A student pass costs the same as a teacher pass; 8 passes are 3.44× faster than 32
    (86% of the ideal 4×). A 4-layer student is another 1.28× faster but worse than the untouched teacher.
+
+   ![Latency vs quality](results/figures/fig2_latency_vs_quality.png)
 6. **Blind error review (AI labels, not human; 80 stories):** rubric 2.33 / 5 for the 32-pass teacher, 1.90 at 8 passes,
    1.97 for the KD student at 8. The student ends stories properly more often (1 vs 6 premature endings in 20) but does
    not fix coherence or grammar.
+
+   ![Failure matrix](results/figures/fig6_errors.png)
 
 ## Repository
 
